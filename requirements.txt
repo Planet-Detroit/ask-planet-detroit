@@ -1,0 +1,21 @@
+# Web framework
+fastapi>=0.109.0
+uvicorn>=0.27.0
+
+# Anthropic
+anthropic>=0.18.0
+
+# OpenAI (for embeddings)
+openai>=1.12.0
+
+# Supabase
+supabase>=2.3.0
+
+# Data processing
+python-dotenv>=1.0.0
+beautifulsoup4>=4.12.0
+lxml>=5.1.0
+
+# Utilities
+pydantic>=2.6.0
+python-dateutil>=2.8.0
