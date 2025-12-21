@@ -65,110 +65,116 @@ jobs:
       
       - name: Notify Slack on success
         if: success()
-        uses: slackapi/slack-github-action@v1.27.0
-        with:
-          payload: |
-            {
-              "text": "✅ Weekly Article Sync Successful",
-              "blocks": [
-                {
-                  "type": "header",
-                  "text": {
-                    "type": "plain_text",
-                    "text": "✅ Ask Planet Detroit - Sync Successful"
-                  }
-                },
-                {
-                  "type": "section",
-                  "fields": [
-                    {
-                      "type": "mrkdwn",
-                      "text": "*Articles Processed:*\n${{ steps.sync.outputs.articles_processed }}"
-                    },
-                    {
-                      "type": "mrkdwn",
-                      "text": "*Chunks Created:*\n${{ steps.sync.outputs.chunks_created }}"
-                    },
-                    {
-                      "type": "mrkdwn",
-                      "text": "*Errors:*\n${{ steps.sync.outputs.error_count }}"
-                    },
-                    {
-                      "type": "mrkdwn",
-                      "text": "*Completed:*\n$(date '+%b %d, %Y %I:%M %p EST')"
-                    }
-                  ]
-                },
-                {
-                  "type": "actions",
-                  "elements": [
-                    {
-                      "type": "button",
-                      "text": {
-                        "type": "plain_text",
-                        "text": "View Run Details"
-                      },
-                      "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-                    }
-                  ]
+        run: |
+          FORMATTED_DATE=$(date '+%b %d, %Y %I:%M %p EST')
+          curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
+            -H 'Content-Type: application/json' \
+            -d @- <<EOF
+          {
+            "text": "✅ Weekly Article Sync Successful",
+            "blocks": [
+              {
+                "type": "header",
+                "text": {
+                  "type": "plain_text",
+                  "text": "✅ Ask Planet Detroit - Sync Successful"
                 }
-              ]
-            }
+              },
+              {
+                "type": "section",
+                "fields": [
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Articles Processed:*\n${{ steps.sync.outputs.articles_processed }}"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Chunks Created:*\n${{ steps.sync.outputs.chunks_created }}"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Errors:*\n${{ steps.sync.outputs.error_count }}"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Completed:*\n${FORMATTED_DATE}"
+                  }
+                ]
+              },
+              {
+                "type": "actions",
+                "elements": [
+                  {
+                    "type": "button",
+                    "text": {
+                      "type": "plain_text",
+                      "text": "View Run Details"
+                    },
+                    "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                  }
+                ]
+              }
+            ]
+          }
+          EOF
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
       
       - name: Notify Slack on failure
         if: failure()
-        uses: slackapi/slack-github-action@v1.27.0
-        with:
-          payload: |
-            {
-              "text": "❌ Weekly Article Sync Failed",
-              "blocks": [
-                {
-                  "type": "header",
-                  "text": {
-                    "type": "plain_text",
-                    "text": "❌ Ask Planet Detroit - Sync Failed"
-                  }
-                },
-                {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": "The weekly article sync encountered an error. Please check the logs."
-                  }
-                },
-                {
-                  "type": "section",
-                  "fields": [
-                    {
-                      "type": "mrkdwn",
-                      "text": "*Workflow:*\nWeekly Article Sync"
-                    },
-                    {
-                      "type": "mrkdwn",
-                      "text": "*Failed at:*\n$(date '+%b %d, %Y %I:%M %p EST')"
-                    }
-                  ]
-                },
-                {
-                  "type": "actions",
-                  "elements": [
-                    {
-                      "type": "button",
-                      "text": {
-                        "type": "plain_text",
-                        "text": "View Error Logs"
-                      },
-                      "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
-                      "style": "danger"
-                    }
-                  ]
+        run: |
+          FORMATTED_DATE=$(date '+%b %d, %Y %I:%M %p EST')
+          curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
+            -H 'Content-Type: application/json' \
+            -d @- <<EOF
+          {
+            "text": "❌ Weekly Article Sync Failed",
+            "blocks": [
+              {
+                "type": "header",
+                "text": {
+                  "type": "plain_text",
+                  "text": "❌ Ask Planet Detroit - Sync Failed"
                 }
-              ]
-            }
+              },
+              {
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": "The weekly article sync encountered an error. Please check the logs."
+                }
+              },
+              {
+                "type": "section",
+                "fields": [
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Workflow:*\nWeekly Article Sync"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Failed at:*\n${FORMATTED_DATE}"
+                  }
+                ]
+              },
+              {
+                "type": "actions",
+                "elements": [
+                  {
+                    "type": "button",
+                    "text": {
+                      "type": "plain_text",
+                      "text": "View Error Logs"
+                    },
+                    "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+                    "style": "danger"
+                  }
+                ]
+              }
+            ]
+          }
+          EOF
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
