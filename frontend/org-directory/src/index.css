@@ -1,0 +1,55 @@
+/* Imports must come first */
+@import url('https://fonts.googleapis.com/css2?family=Asap:wght@400;600;700&display=swap');
+@import 'leaflet/dist/leaflet.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Planet Detroit Brand Colors */
+:root {
+  --pd-blue: #2f80c3;      /* Logo only - NOT for text */
+  --pd-orange: #ea5a39;    /* DONATE button */
+  --pd-text: #111;         /* Headlines, body text */
+  --pd-text-light: #515151; /* Meta info */
+  --pd-bg: #f5f5f5;        /* Background */
+}
+
+/* Base styles - Arial for body */
+body {
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--pd-text);
+}
+
+@media (min-width: 600px) {
+  body {
+    font-size: 17px;
+  }
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Asap', Arial, sans-serif;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--pd-text);
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #999;
+}
