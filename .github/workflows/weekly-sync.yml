@@ -1,0 +1,180 @@
+name: Weekly Article Sync
+
+on:
+  # Run every Monday at 9 AM EST (14:00 UTC)
+  schedule:
+    - cron: '0 14 * * 1'
+  
+  # Allow manual triggering from GitHub UI
+  workflow_dispatch:
+
+jobs:
+  sync-articles:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      - name: Run incremental sync
+        id: sync
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          WORDPRESS_BASE_URL: https://planetdetroit.org
+        run: |
+          python scripts/ingest_articles.py --incremental 2>&1 | tee sync_output.txt
+          
+          # Extract metrics from output
+          ARTICLES=$(grep "Processed:" sync_output.txt | grep -oP '\d+(?= articles)' || echo "0")
+          CHUNKS=$(grep "Processed:" sync_output.txt | grep -oP '→ \d+' | grep -oP '\d+' || echo "0")
+          ERRORS=$(grep "Errors:" sync_output.txt | grep -oP '\d+' || echo "0")
+          
+          echo "articles_processed=$ARTICLES" >> $GITHUB_OUTPUT
+          echo "chunks_created=$CHUNKS" >> $GITHUB_OUTPUT
+          echo "error_count=$ERRORS" >> $GITHUB_OUTPUT
+      
+      - name: Report results
+        if: always()
+        run: |
+          if [ -f data/sync_state.json ]; then
+            echo "✅ Sync completed at: $(cat data/sync_state.json)"
+          else
+            echo "⚠️ Warning: sync_state.json not found"
+          fi
+      
+      - name: Create summary
+        if: always()
+        run: |
+          echo "## Weekly Sync Results 📊" >> $GITHUB_STEP_SUMMARY
+          echo "- Completed at: $(date)" >> $GITHUB_STEP_SUMMARY
+          echo "- Articles: ${{ steps.sync.outputs.articles_processed }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Chunks: ${{ steps.sync.outputs.chunks_created }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Errors: ${{ steps.sync.outputs.error_count }}" >> $GITHUB_STEP_SUMMARY
+      
+      - name: Notify Slack on success
+        if: success()
+        run: |
+          FORMATTED_DATE=$(date '+%b %d, %Y %I:%M %p EST')
+          curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
+            -H 'Content-Type: application/json' \
+            -d @- <<EOF
+          {
+            "text": "✅ Weekly Article Sync Successful",
+            "blocks": [
+              {
+                "type": "header",
+                "text": {
+                  "type": "plain_text",
+                  "text": "✅ Ask Planet Detroit - Sync Successful"
+                }
+              },
+              {
+                "type": "section",
+                "fields": [
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Articles Processed:*\n${{ steps.sync.outputs.articles_processed }}"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Chunks Created:*\n${{ steps.sync.outputs.chunks_created }}"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Errors:*\n${{ steps.sync.outputs.error_count }}"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Completed:*\n${FORMATTED_DATE}"
+                  }
+                ]
+              },
+              {
+                "type": "actions",
+                "elements": [
+                  {
+                    "type": "button",
+                    "text": {
+                      "type": "plain_text",
+                      "text": "View Run Details"
+                    },
+                    "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                  }
+                ]
+              }
+            ]
+          }
+          EOF
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+      
+      - name: Notify Slack on failure
+        if: failure()
+        run: |
+          FORMATTED_DATE=$(date '+%b %d, %Y %I:%M %p EST')
+          curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
+            -H 'Content-Type: application/json' \
+            -d @- <<EOF
+          {
+            "text": "❌ Weekly Article Sync Failed",
+            "blocks": [
+              {
+                "type": "header",
+                "text": {
+                  "type": "plain_text",
+                  "text": "❌ Ask Planet Detroit - Sync Failed"
+                }
+              },
+              {
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": "The weekly article sync encountered an error. Please check the logs."
+                }
+              },
+              {
+                "type": "section",
+                "fields": [
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Workflow:*\nWeekly Article Sync"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Failed at:*\n${FORMATTED_DATE}"
+                  }
+                ]
+              },
+              {
+                "type": "actions",
+                "elements": [
+                  {
+                    "type": "button",
+                    "text": {
+                      "type": "plain_text",
+                      "text": "View Error Logs"
+                    },
+                    "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+                    "style": "danger"
+                  }
+                ]
+              }
+            ]
+          }
+          EOF
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
