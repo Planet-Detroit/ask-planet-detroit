@@ -1,0 +1,134 @@
+#root {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0;
+}
+
+/* Main Navigation - Prettier Design */
+.main-nav {
+  background: linear-gradient(to bottom, #ffffff 0%, #f9fafb 100%);
+  border-bottom: 1px solid #e5e7eb;
+  padding: 12px 0;
+  margin-bottom: 30px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.nav-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+  display: flex;
+  gap: 12px;
+}
+
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  text-decoration: none;
+  color: #64748b;
+  font-weight: 600;
+  font-size: 15px;
+  transition: all 0.2s;
+  border-radius: 8px;
+  background: transparent;
+  border: 2px solid transparent;
+}
+
+.nav-icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.nav-text {
+  line-height: 1;
+}
+
+.nav-link:hover {
+  background: #f1f5f9;
+  color: #1e293b;
+  border-color: #e2e8f0;
+}
+
+.nav-link.active {
+  background: white;
+  color: #14b8a6;
+  border-color: #14b8a6;
+  box-shadow: 0 2px 4px rgba(20, 184, 166, 0.1);
+}
+
+.nav-link-submit {
+  margin-left: auto;
+}
+
+.nav-link-submit:not(.active) {
+  background: #eff6ff;
+  color: #2563eb;
+  border-color: #dbeafe;
+}
+
+.nav-link-submit:not(.active):hover {
+  background: #dbeafe;
+  border-color: #3b82f6;
+}
+
+.nav-link-submit.active {
+  background: white;
+  color: #2563eb;
+  border-color: #3b82f6;
+  box-shadow: 0 2px 4px rgba(37, 99, 235, 0.1);
+}
+
+/* Remove default styles */
+.logo {
+  height: 6em;
+  padding: 1.5em;
+  will-change: filter;
+  transition: filter 300ms;
+}
+.logo:hover {
+  filter: drop-shadow(0 0 2em #646cffaa);
+}
+.logo.react:hover {
+  filter: drop-shadow(0 0 2em #61dafbaa);
+}
+
+@keyframes logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  a:nth-of-type(2) .logo {
+    animation: logo-spin infinite 20s linear;
+  }
+}
+
+.card {
+  padding: 2em;
+}
+
+.read-the-docs {
+  color: #888;
+}
+
+/* Mobile Navigation */
+@media (max-width: 768px) {
+  .nav-container {
+    flex-direction: column;
+    padding: 0 15px;
+  }
+  
+  .nav-link {
+    justify-content: center;
+  }
+  
+  .nav-link-submit {
+    margin-left: 0;
+  }
+}

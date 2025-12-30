@@ -1,0 +1,140 @@
+#root {
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 0;
+}
+
+/* ===== OPTION 2: PILL BUTTONS NAVIGATION ===== */
+.main-nav {
+  background: linear-gradient(to bottom, #ffffff 0%, #f9fafb 100%);
+  border-bottom: 1px solid #e5e7eb;
+  padding: 10px 0;
+  margin-bottom: 20px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+.nav-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 0 0px;
+  display: flex;
+  gap: 100px;
+  justify-content: center;
+}
+
+.nav-link {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 18px 36px !important;
+  text-decoration: none;
+  color: #08143d;
+  font-weight: 600;
+  font-size: 15px;
+  background: #e0f2fe !important;
+  border-radius: 20px !important;
+  border: 3px solid #e2e8f0 !important;
+  transition: all 0.2s;
+  min-width: 200px;
+}
+
+.nav-icon {
+  font-size: 28px;
+  line-height: 1;
+}
+
+.nav-text {
+  line-height: 1.2;
+  text-align: center;
+}
+
+.nav-link:hover {
+  background: #e2e8f0 !important;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  color: #64748b;
+}
+
+.nav-link.active {
+  background: white !important;
+  border-color: #08143d !important;
+  color: #08143d;
+  box-shadow: 0 4px 12px rgba(20, 184, 166, 0.15) !important;
+}
+
+/* Submit button special styling */
+.nav-link-submit {
+  background: linear-gradient(135deg, #bae6fd 0%, #7dd3fc 100%);
+  color: #08143d !important;
+  border-color: #08143d !important;
+  margin-left: 0;
+}
+
+.nav-link-submit:hover {
+  background: #e2e8f0 !important;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  color: #64748b;
+}
+
+.nav-link-submit.active {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
+  border-color: #2563eb !important;
+  color: white !important;
+  box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4) !important;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .nav-container {
+    flex-direction: column;
+    padding: 0 20px;
+  }
+  
+  .nav-link {
+    min-width: 100%;
+  }
+}
+
+/* ===== END NAVIGATION ===== */
+
+/* Default Vite styles (keep these) */
+.logo {
+  height: 6em;
+  padding: 1.5em;
+  will-change: filter;
+  transition: filter 300ms;
+}
+
+.logo:hover {
+  filter: drop-shadow(0 0 2em #646cffaa);
+}
+
+.logo.react:hover {
+  filter: drop-shadow(0 0 2em #61dafbaa);
+}
+
+@keyframes logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  a:nth-of-type(2) .logo {
+    animation: logo-spin infinite 20s linear;
+  }
+}
+
+.card {
+  padding: 1em;
+}
+
+.read-the-docs {
+  color: #888;
+}
