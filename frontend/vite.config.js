@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
-  base: '/ask-planet-detroit/',  // For GitHub Pages
+  base: '/',
   server: {
     proxy: {
       '/api': {
