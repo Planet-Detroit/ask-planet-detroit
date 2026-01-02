@@ -93,78 +93,90 @@ jobs:
           fi
       
       - name: Notify Slack on success
-        if: success() && secrets.SLACK_WEBHOOK_URL != ''
+        if: success()
+        continue-on-error: true
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         run: |
-          curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
+          if [ -z "$SLACK_WEBHOOK_URL" ]; then
+            echo "No Slack webhook configured, skipping notification"
+            exit 0
+          fi
+          
+          curl -X POST "$SLACK_WEBHOOK_URL" \
             -H 'Content-Type: application/json' \
-            -d @- <<EOF
-          {
-            "text": "📅 Daily Meeting Scraper Complete",
-            "blocks": [
-              {
-                "type": "header",
-                "text": {
-                  "type": "plain_text",
-                  "text": "📅 Meeting Scraper Results"
+            -d "{
+              \"text\": \"📅 Daily Meeting Scraper Complete\",
+              \"blocks\": [
+                {
+                  \"type\": \"header\",
+                  \"text\": {
+                    \"type\": \"plain_text\",
+                    \"text\": \"📅 Meeting Scraper Results\"
+                  }
+                },
+                {
+                  \"type\": \"section\",
+                  \"fields\": [
+                    {
+                      \"type\": \"mrkdwn\",
+                      \"text\": \"*MPSC:*\n${{ steps.scrape.outputs.mpsc_count }} meetings\"
+                    },
+                    {
+                      \"type\": \"mrkdwn\",
+                      \"text\": \"*GLWA:*\n${{ steps.scrape.outputs.glwa_count }} meetings\"
+                    },
+                    {
+                      \"type\": \"mrkdwn\",
+                      \"text\": \"*Detroit:*\n${{ steps.scrape.outputs.detroit_count }} meetings\"
+                    },
+                    {
+                      \"type\": \"mrkdwn\",
+                      \"text\": \"*Total:*\n${{ steps.scrape.outputs.total_count }} meetings\"
+                    }
+                  ]
+                },
+                {
+                  \"type\": \"context\",
+                  \"elements\": [
+                    {
+                      \"type\": \"mrkdwn\",
+                      \"text\": \"✅ Completed: $(date '+%b %d, %Y %I:%M %p') UTC\"
+                    }
+                  ]
                 }
-              },
-              {
-                "type": "section",
-                "fields": [
-                  {
-                    "type": "mrkdwn",
-                    "text": "*MPSC:*\n${{ steps.scrape.outputs.mpsc_count }} meetings"
-                  },
-                  {
-                    "type": "mrkdwn",
-                    "text": "*GLWA:*\n${{ steps.scrape.outputs.glwa_count }} meetings"
-                  },
-                  {
-                    "type": "mrkdwn",
-                    "text": "*Detroit:*\n${{ steps.scrape.outputs.detroit_count }} meetings"
-                  },
-                  {
-                    "type": "mrkdwn",
-                    "text": "*Total:*\n${{ steps.scrape.outputs.total_count }} meetings"
-                  }
-                ]
-              },
-              {
-                "type": "context",
-                "elements": [
-                  {
-                    "type": "mrkdwn",
-                    "text": "✅ Completed: $(date '+%b %d, %Y %I:%M %p') UTC"
-                  }
-                ]
-              }
-            ]
-          }
-          EOF
+              ]
+            }"
       
       - name: Notify Slack on failure
-        if: failure() && secrets.SLACK_WEBHOOK_URL != ''
+        if: failure()
+        continue-on-error: true
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         run: |
-          curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
+          if [ -z "$SLACK_WEBHOOK_URL" ]; then
+            echo "No Slack webhook configured, skipping notification"
+            exit 0
+          fi
+          
+          curl -X POST "$SLACK_WEBHOOK_URL" \
             -H 'Content-Type: application/json' \
-            -d @- <<EOF
-          {
-            "text": "❌ Meeting Scraper Failed",
-            "blocks": [
-              {
-                "type": "header",
-                "text": {
-                  "type": "plain_text",
-                  "text": "❌ Meeting Scraper Failed"
+            -d "{
+              \"text\": \"❌ Meeting Scraper Failed\",
+              \"blocks\": [
+                {
+                  \"type\": \"header\",
+                  \"text\": {
+                    \"type\": \"plain_text\",
+                    \"text\": \"❌ Meeting Scraper Failed\"
+                  }
+                },
+                {
+                  \"type\": \"section\",
+                  \"text\": {
+                    \"type\": \"mrkdwn\",
+                    \"text\": \"The daily meeting scraper encountered an error. <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View logs>\"
+                  }
                 }
-              },
-              {
-                "type": "section",
-                "text": {
-                  "type": "mrkdwn",
-                  "text": "The daily meeting scraper encountered an error. <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View logs>"
-                }
-              }
-            ]
-          }
-          EOF
+              ]
+            }"
