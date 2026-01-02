@@ -9,15 +9,15 @@ on:
   workflow_dispatch:
     inputs:
       scraper:
-        description: 'Which scraper to run (leave empty for all)'
+        description: 'Which scraper to run'
         required: false
-        default: ''
+        default: 'all'
         type: choice
         options:
-          - ''
+          - all
           - mpsc
-          - egle
           - glwa
+          - detroit
 
 jobs:
   scrape-meetings:
@@ -47,23 +47,30 @@ jobs:
         run: |
           cd scrapers
           
-          if [ -n "${{ github.event.inputs.scraper }}" ]; then
-            # Run specific scraper
-            python run_scrapers.py ${{ github.event.inputs.scraper }} 2>&1 | tee scrape_output.txt
-          else
-            # Run all scrapers
+          SCRAPER="${{ github.event.inputs.scraper || 'all' }}"
+          
+          if [ "$SCRAPER" = "all" ]; then
             python run_scrapers.py 2>&1 | tee scrape_output.txt
+          else
+            python run_scrapers.py $SCRAPER 2>&1 | tee scrape_output.txt
           fi
           
           # Extract counts from output
           MPSC_COUNT=$(grep -oP 'MPSC: \K\d+' scrape_output.txt || echo "0")
-          EGLE_COUNT=$(grep -oP 'EGLE: \K\d+' scrape_output.txt || echo "0")
           GLWA_COUNT=$(grep -oP 'GLWA: \K\d+' scrape_output.txt || echo "0")
+          DETROIT_COUNT=$(grep -oP 'DETROIT: \K\d+' scrape_output.txt || echo "0")
           TOTAL=$(grep -oP 'TOTAL: \K\d+' scrape_output.txt || echo "0")
           
+          # Check for errors
+          if grep -q "ERROR" scrape_output.txt; then
+            echo "has_errors=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_errors=false" >> $GITHUB_OUTPUT
+          fi
+          
           echo "mpsc_count=$MPSC_COUNT" >> $GITHUB_OUTPUT
-          echo "egle_count=$EGLE_COUNT" >> $GITHUB_OUTPUT
           echo "glwa_count=$GLWA_COUNT" >> $GITHUB_OUTPUT
+          echo "detroit_count=$DETROIT_COUNT" >> $GITHUB_OUTPUT
           echo "total_count=$TOTAL" >> $GITHUB_OUTPUT
       
       - name: Create summary
@@ -76,14 +83,18 @@ jobs:
           echo "| Agency | Meetings Found |" >> $GITHUB_STEP_SUMMARY
           echo "|--------|----------------|" >> $GITHUB_STEP_SUMMARY
           echo "| MPSC | ${{ steps.scrape.outputs.mpsc_count }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| EGLE | ${{ steps.scrape.outputs.egle_count }} |" >> $GITHUB_STEP_SUMMARY
           echo "| GLWA | ${{ steps.scrape.outputs.glwa_count }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Detroit | ${{ steps.scrape.outputs.detroit_count }} |" >> $GITHUB_STEP_SUMMARY
           echo "| **Total** | **${{ steps.scrape.outputs.total_count }}** |" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ steps.scrape.outputs.has_errors }}" = "true" ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "⚠️ **Some errors occurred.** Check logs for details." >> $GITHUB_STEP_SUMMARY
+          fi
       
       - name: Notify Slack on success
-        if: success() && vars.SLACK_WEBHOOK_URL != ''
+        if: success() && secrets.SLACK_WEBHOOK_URL != ''
         run: |
-          FORMATTED_DATE=$(date '+%b %d, %Y %I:%M %p EST')
           curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
             -H 'Content-Type: application/json' \
             -d @- <<EOF
@@ -106,11 +117,11 @@ jobs:
                   },
                   {
                     "type": "mrkdwn",
-                    "text": "*EGLE:*\n${{ steps.scrape.outputs.egle_count }} meetings"
+                    "text": "*GLWA:*\n${{ steps.scrape.outputs.glwa_count }} meetings"
                   },
                   {
                     "type": "mrkdwn",
-                    "text": "*GLWA:*\n${{ steps.scrape.outputs.glwa_count }} meetings"
+                    "text": "*Detroit:*\n${{ steps.scrape.outputs.detroit_count }} meetings"
                   },
                   {
                     "type": "mrkdwn",
@@ -123,18 +134,16 @@ jobs:
                 "elements": [
                   {
                     "type": "mrkdwn",
-                    "text": "Completed: ${FORMATTED_DATE}"
+                    "text": "✅ Completed: $(date '+%b %d, %Y %I:%M %p') UTC"
                   }
                 ]
               }
             ]
           }
           EOF
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
       
       - name: Notify Slack on failure
-        if: failure() && vars.SLACK_WEBHOOK_URL != ''
+        if: failure() && secrets.SLACK_WEBHOOK_URL != ''
         run: |
           curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
             -H 'Content-Type: application/json' \
@@ -159,5 +168,3 @@ jobs:
             ]
           }
           EOF
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
