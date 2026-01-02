@@ -1,0 +1,163 @@
+name: Daily Meeting Scraper
+
+on:
+  # Run every day at 6 AM EST (11:00 UTC)
+  schedule:
+    - cron: '0 11 * * *'
+  
+  # Allow manual triggering from GitHub UI
+  workflow_dispatch:
+    inputs:
+      scraper:
+        description: 'Which scraper to run (leave empty for all)'
+        required: false
+        default: ''
+        type: choice
+        options:
+          - ''
+          - mpsc
+          - egle
+          - glwa
+
+jobs:
+  scrape-meetings:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r scrapers/requirements.txt
+          playwright install chromium
+          playwright install-deps chromium
+      
+      - name: Run meeting scrapers
+        id: scrape
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          cd scrapers
+          
+          if [ -n "${{ github.event.inputs.scraper }}" ]; then
+            # Run specific scraper
+            python run_scrapers.py ${{ github.event.inputs.scraper }} 2>&1 | tee scrape_output.txt
+          else
+            # Run all scrapers
+            python run_scrapers.py 2>&1 | tee scrape_output.txt
+          fi
+          
+          # Extract counts from output
+          MPSC_COUNT=$(grep -oP 'MPSC: \K\d+' scrape_output.txt || echo "0")
+          EGLE_COUNT=$(grep -oP 'EGLE: \K\d+' scrape_output.txt || echo "0")
+          GLWA_COUNT=$(grep -oP 'GLWA: \K\d+' scrape_output.txt || echo "0")
+          TOTAL=$(grep -oP 'TOTAL: \K\d+' scrape_output.txt || echo "0")
+          
+          echo "mpsc_count=$MPSC_COUNT" >> $GITHUB_OUTPUT
+          echo "egle_count=$EGLE_COUNT" >> $GITHUB_OUTPUT
+          echo "glwa_count=$GLWA_COUNT" >> $GITHUB_OUTPUT
+          echo "total_count=$TOTAL" >> $GITHUB_OUTPUT
+      
+      - name: Create summary
+        if: always()
+        run: |
+          echo "## Meeting Scraper Results 📅" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Run completed:** $(date)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Agency | Meetings Found |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|----------------|" >> $GITHUB_STEP_SUMMARY
+          echo "| MPSC | ${{ steps.scrape.outputs.mpsc_count }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| EGLE | ${{ steps.scrape.outputs.egle_count }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| GLWA | ${{ steps.scrape.outputs.glwa_count }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Total** | **${{ steps.scrape.outputs.total_count }}** |" >> $GITHUB_STEP_SUMMARY
+      
+      - name: Notify Slack on success
+        if: success() && vars.SLACK_WEBHOOK_URL != ''
+        run: |
+          FORMATTED_DATE=$(date '+%b %d, %Y %I:%M %p EST')
+          curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
+            -H 'Content-Type: application/json' \
+            -d @- <<EOF
+          {
+            "text": "📅 Daily Meeting Scraper Complete",
+            "blocks": [
+              {
+                "type": "header",
+                "text": {
+                  "type": "plain_text",
+                  "text": "📅 Meeting Scraper Results"
+                }
+              },
+              {
+                "type": "section",
+                "fields": [
+                  {
+                    "type": "mrkdwn",
+                    "text": "*MPSC:*\n${{ steps.scrape.outputs.mpsc_count }} meetings"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*EGLE:*\n${{ steps.scrape.outputs.egle_count }} meetings"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*GLWA:*\n${{ steps.scrape.outputs.glwa_count }} meetings"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Total:*\n${{ steps.scrape.outputs.total_count }} meetings"
+                  }
+                ]
+              },
+              {
+                "type": "context",
+                "elements": [
+                  {
+                    "type": "mrkdwn",
+                    "text": "Completed: ${FORMATTED_DATE}"
+                  }
+                ]
+              }
+            ]
+          }
+          EOF
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      
+      - name: Notify Slack on failure
+        if: failure() && vars.SLACK_WEBHOOK_URL != ''
+        run: |
+          curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
+            -H 'Content-Type: application/json' \
+            -d @- <<EOF
+          {
+            "text": "❌ Meeting Scraper Failed",
+            "blocks": [
+              {
+                "type": "header",
+                "text": {
+                  "type": "plain_text",
+                  "text": "❌ Meeting Scraper Failed"
+                }
+              },
+              {
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": "The daily meeting scraper encountered an error. <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View logs>"
+                }
+              }
+            ]
+          }
+          EOF
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
