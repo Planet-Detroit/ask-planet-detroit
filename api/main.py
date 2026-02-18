@@ -583,76 +583,162 @@ Example: [3, 7, 1]"""
         return []
 
 
-def generate_civic_actions(issues: List[str], question: str) -> List[dict]:
-    """Generate relevant civic actions based on issues"""
-    
-    actions = []
-    
-    if "dte_energy" in issues or "data_centers" in issues:
-        actions.extend([
-            {
-                "action_type": "comment",
-                "title": "Submit comments to MPSC",
-                "description": "File public comments on utility rate cases and energy policy decisions",
-                "url": "https://michigan.gov/mpsc"
-            },
-            {
-                "action_type": "attend",
-                "title": "Attend MPSC public hearings",
-                "description": "Participate in Michigan Public Service Commission meetings",
-                "url": None
-            }
-        ])
-    
-    if "air_quality" in issues:
-        actions.extend([
-            {
-                "action_type": "monitor",
-                "title": "Check local air quality",
-                "description": "Monitor AQI levels in your area using EPA's AirNow",
-                "url": "https://www.airnow.gov/"
-            },
-            {
-                "action_type": "comment",
-                "title": "Comment on air permits",
-                "description": "Submit comments on EGLE air quality permit applications",
-                "url": "https://www.michigan.gov/egle/about/organization/air-quality"
-            }
-        ])
-    
-    if "drinking_water" in issues:
-        actions.extend([
-            {
-                "action_type": "test",
-                "title": "Test your water",
-                "description": "Request a water quality test from your local utility",
-                "url": None
-            },
-            {
-                "action_type": "check",
-                "title": "Check for lead service lines",
-                "description": "Find out if your home has lead pipes that need replacement",
-                "url": "https://www.michigan.gov/egle/about/organization/drinking-water-and-environmental-health/community-water-supply/lead-service-line-replacement"
-            }
-        ])
-    
-    # Always include these
-    actions.extend([
-        {
-            "action_type": "follow",
-            "title": "Follow Planet Detroit's coverage",
-            "description": "Stay informed on this issue with ongoing journalism",
-            "url": "https://planetdetroit.org"
-        },
-        {
-            "action_type": "subscribe",
-            "title": "Subscribe to Planet Detroit newsletter",
-            "description": "Get environmental news delivered to your inbox",
-            "url": "https://planetdetroit.org/newsletter"
-        }
-    ])
-    
-    return actions[:6]
+def generate_civic_actions_with_context(
+    article_summary: str,
+    detected_issues: List[str],
+    ranked_meetings: List[dict],
+    ranked_comment_periods: List[dict],
+    ranked_officials: List[dict],
+) -> List[dict]:
+    """Generate specific civic actions using ranked meetings, comment periods, and officials.
+
+    Uses Haiku to produce 3-5 actions that reference real upcoming meetings by name/date,
+    open comment periods with deadlines, and relevant officials by name. This replaces
+    the earlier approach of generating generic actions in the initial Sonnet analysis.
+    Cost: ~$0.01-0.02 per call.
+    """
+
+    if not article_summary:
+        return []
+
+    issues_text = ", ".join(detected_issues) if detected_issues else "general"
+
+    # Build context sections from ranked data
+    meetings_context = "None found."
+    if ranked_meetings:
+        lines = []
+        for m in ranked_meetings:
+            title = m.get("title", "Unknown")
+            agency = m.get("agency", "")
+            date = m.get("meeting_date", "")
+            time_str = m.get("meeting_time", "")
+            virtual = m.get("virtual_url") or ""
+            agenda = m.get("agenda_url") or ""
+            details = m.get("details_url") or ""
+            best_url = agenda or details or virtual or ""
+            line = f"- {title} ({agency}) — {date} {time_str}"
+            if virtual:
+                line += f" [virtual link available]"
+            if best_url:
+                line += f" | URL: {best_url}"
+            lines.append(line)
+        meetings_context = "\n".join(lines)
+
+    periods_context = "None found."
+    if ranked_comment_periods:
+        lines = []
+        for p in ranked_comment_periods:
+            title = p.get("title", "Unknown")
+            agency = p.get("agency", "")
+            end_date = p.get("end_date", "")
+            days_left = p.get("days_remaining", "")
+            comment_url = p.get("comment_url") or ""
+            details_url = p.get("details_url") or ""
+            best_url = comment_url or details_url or ""
+            line = f"- {title} ({agency}) — deadline {end_date}"
+            if days_left != "":
+                line += f" ({days_left} days left)"
+            if best_url:
+                line += f" | URL: {best_url}"
+            lines.append(line)
+        periods_context = "\n".join(lines)
+
+    officials_context = "None found."
+    if ranked_officials:
+        lines = []
+        for o in ranked_officials:
+            name = o.get("name", "Unknown")
+            party = o.get("party", "")
+            chamber = "Senate" if o.get("chamber") == "upper" else "House"
+            district = o.get("current_district", "")
+            committees = o.get("committees") or []
+            roles = o.get("committee_roles") or []
+            leadership = [
+                f"{r['committee']} ({r['role']})"
+                for r in roles
+                if r.get("role") and r["role"] != "member"
+            ]
+            line = f"- {name} ({party}, {chamber} Dist. {district})"
+            if leadership:
+                line += f" — {'; '.join(leadership)}"
+            elif committees:
+                line += f" — [{', '.join(committees[:3])}]"
+            contact_url = o.get("website") or o.get("openstates_url") or ""
+            if contact_url:
+                line += f" | URL: {contact_url}"
+            lines.append(line)
+        officials_context = "\n".join(lines)
+
+    prompt = f"""Generate 3-5 specific civic actions for readers of this article. You have real data about upcoming meetings, open comment periods, and relevant officials — use it to make actions concrete and specific.
+
+Article summary: {article_summary}
+Detected issues: {issues_text}
+
+UPCOMING RELEVANT MEETINGS:
+{meetings_context}
+
+OPEN COMMENT PERIODS:
+{periods_context}
+
+RELEVANT ELECTED OFFICIALS:
+{officials_context}
+
+EDITORIAL GUIDELINES — this is for a journalism outlet, not an advocacy organization:
+- YES: Actions that connect people to democratic processes, public information, and civic institutions
+  (attend a specific public meeting, submit a public comment by a deadline, look up a specific representative, check a public database)
+- NO: Actions that advocate for specific policy positions or tell readers what to support/oppose
+  (sign a petition, call your representative to demand X, support/oppose a bill)
+- The goal is to INFORM and CONNECT, not to PERSUADE.
+- Be specific: reference actual meeting names, dates, deadlines, agency names, and official names from the data above.
+- Example GOOD action: "Attend the MPSC hearing on DTE's rate case on March 5" with the meeting URL
+- Example BAD action: "Attend public hearings about utility rates" (too vague)
+
+For each action, provide:
+- action_type: one of [attend, comment, learn, monitor, check, lookup, request, vote]
+- title: Short action title (imperative verb + specific subject)
+- description: One concrete sentence with specific names, dates, and details from the data above
+- url: A real URL from the data above, or null if none available
+
+Return ONLY a JSON array of 3-5 action objects.
+Example: [{{"action_type": "attend", "title": "Attend the MPSC rate case hearing", "description": "The Michigan Public Service Commission is holding a hearing on DTE's rate increase request on March 5 at 10 AM.", "url": "https://example.gov/hearing"}}]"""
+
+    try:
+        response = anthropic_client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=1500,
+            messages=[{"role": "user", "content": prompt}]
+        )
+
+        response_text = response.content[0].text.strip()
+
+        # Parse JSON array from response
+        if "```json" in response_text:
+            response_text = response_text.split("```json")[1].split("```")[0].strip()
+        elif "```" in response_text:
+            response_text = response_text.split("```")[1].split("```")[0].strip()
+
+        actions = json.loads(response_text)
+
+        # Validate structure
+        valid_types = {"attend", "comment", "learn", "monitor", "check", "lookup", "request", "vote"}
+        validated = []
+        for a in actions:
+            if isinstance(a, dict) and a.get("title"):
+                if a.get("action_type") not in valid_types:
+                    a["action_type"] = "learn"
+                validated.append({
+                    "action_type": a["action_type"],
+                    "title": a["title"],
+                    "description": a.get("description", ""),
+                    "url": a.get("url"),
+                })
+        return validated[:5]
+
+    except Exception as e:
+        print(f"Context-aware civic actions error: {e}")
+        return []
+
+
 
 # =============================================================================
 # API Endpoints
@@ -760,8 +846,8 @@ async def search(request: SearchRequest):
     all_orgs = get_all_organizations()
     related_orgs = rank_organizations_with_ai(all_orgs, answer, detected_issues, limit=5)
     
-    # Generate civic actions
-    civic_actions = generate_civic_actions(detected_issues, question)
+    # Civic actions are only generated for article analysis, not search
+    civic_actions = []
     
     # Calculate unique articles
     unique_articles = len(set(c.get("article_id") for c in chunks))
@@ -1056,26 +1142,6 @@ async def analyze_article(request: AnalyzeArticleRequest):
 
 3. SUMMARY: One paragraph summary of what the article is about (2-3 sentences)
 
-4. CIVIC_ACTIONS: 3-5 actions that connect readers to civic infrastructure related to this article.
-
-   IMPORTANT EDITORIAL GUIDELINES — this is for a journalism outlet, not an advocacy organization:
-   - YES: Actions that connect people to democratic processes, public information, and civic institutions
-     (attend a public meeting, submit a public comment, look up your representative, check a public database,
-     read a government report, find your polling place, request public records, test your water, check air quality)
-   - NO: Actions that advocate for specific policy positions or tell readers what to support/oppose
-     (sign a petition, call your representative to demand X, support/oppose a bill, join a campaign)
-   - The goal is to INFORM and CONNECT, not to PERSUADE. Show readers WHERE decisions are being made
-     and HOW to participate — never tell them WHAT position to take.
-   - Be specific: name the actual agency, docket, database, or government body. Avoid vague actions.
-   - If the article mentions a specific public proceeding (rate case, permit application, rulemaking),
-     reference it by name and tell readers where to find it.
-
-   For each action, provide:
-   - action_type: one of [attend, comment, learn, monitor, check, lookup, request, vote]
-   - title: Short action title (imperative verb)
-   - description: One concrete sentence telling the reader exactly what to do and where
-   - url: A relevant government or institutional URL (or null if not applicable)
-
 Article text:
 {article_text}
 
@@ -1083,16 +1149,13 @@ Respond in this exact JSON format:
 {{
   "detected_issues": ["issue1", "issue2"],
   "entities": ["Entity 1", "Entity 2"],
-  "summary": "Summary text here...",
-  "civic_actions": [
-    {{"action_type": "attend", "title": "Action title", "description": "Description", "url": null}}
-  ]
+  "summary": "Summary text here..."
 }}"""
 
     try:
         response = anthropic_client.messages.create(
             model="claude-sonnet-4-20250514",
-            max_tokens=2000,
+            max_tokens=1000,
             messages=[{"role": "user", "content": analysis_prompt}]
         )
         
@@ -1112,8 +1175,7 @@ Respond in this exact JSON format:
         analysis = {
             "detected_issues": [],
             "entities": [],
-            "summary": "Could not analyze article.",
-            "civic_actions": []
+            "summary": "Could not analyze article."
         }
     
     # AI-powered org matching: send all orgs to Haiku for semantic ranking
@@ -1152,13 +1214,22 @@ Respond in this exact JSON format:
         limit=3
     )
 
+    # Generate context-aware civic actions using ranked data (Haiku)
+    civic_actions = generate_civic_actions_with_context(
+        article_summary=analysis.get("summary", ""),
+        detected_issues=analysis.get("detected_issues", []),
+        ranked_meetings=related_meetings,
+        ranked_comment_periods=related_comment_periods,
+        ranked_officials=related_officials,
+    )
+
     elapsed_time = int((time.time() - start_time) * 1000)
 
     return {
         "detected_issues": analysis.get("detected_issues", []),
         "entities": analysis.get("entities", []),
         "summary": analysis.get("summary", ""),
-        "civic_actions": analysis.get("civic_actions", []),
+        "civic_actions": civic_actions,
         "related_organizations": related_organizations,
         "related_meetings": related_meetings,
         "related_comment_periods": related_comment_periods,
