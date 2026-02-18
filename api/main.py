@@ -246,6 +246,117 @@ Example: [3, 7, 1, 12, 5, 9]"""
         print(f"AI org ranking error: {e}")
         return []
 
+
+def get_upcoming_meetings(limit: int = 200) -> List[dict]:
+    """Fetch upcoming meetings from Supabase."""
+    try:
+        response = supabase.from_("meetings")\
+            .select("*")\
+            .gte("start_datetime", datetime.now(timezone.utc).isoformat())\
+            .order("start_datetime", desc=False)\
+            .limit(limit)\
+            .execute()
+        return response.data or []
+    except Exception as e:
+        print(f"Error fetching meetings: {e}")
+        return []
+
+
+def rank_meetings_with_ai(
+    meetings: List[dict],
+    article_summary: str,
+    detected_issues: List[str],
+    limit: int = 5
+) -> List[dict]:
+    """Use Claude to pick the most relevant meetings for an article.
+
+    Sends upcoming meetings to Haiku and lets it semantically select the best
+    matches based on article content, agency relevance, and meeting context.
+    Cost: ~$0.01-0.02 per call (meetings are smaller than org directory).
+    """
+
+    if not meetings or not article_summary:
+        return []
+
+    # Build compact meeting list for the prompt
+    meeting_descriptions = []
+    for i, m in enumerate(meetings):
+        title = m.get("title", "Unknown")
+        agency = m.get("agency", "")
+        agency_full = m.get("agency_full_name", "")
+        date = m.get("meeting_date", "")
+        time = m.get("meeting_time", "")
+        meeting_type = m.get("meeting_type", "")
+        description = (m.get("description") or "")[:150]
+        tags = ", ".join(m.get("issue_tags") or [])
+        has_agenda = "has agenda" if m.get("agenda_url") else ""
+        virtual = "virtual/hybrid" if m.get("virtual_url") else "in-person"
+
+        desc = f"{i+1}. {title} ({agency})"
+        if agency_full and agency_full != agency:
+            desc += f" [{agency_full}]"
+        desc += f" — {date} {time}"
+        if meeting_type:
+            desc += f", {meeting_type}"
+        desc += f", {virtual}"
+        if tags:
+            desc += f" | tags: {tags}"
+        if description and description != f"{agency} {title}":
+            desc += f" | {description}"
+        meeting_descriptions.append(desc)
+
+    meeting_list_text = "\n".join(meeting_descriptions)
+    issues_text = ", ".join(detected_issues) if detected_issues else "general"
+
+    ranking_prompt = f"""You are helping a Michigan environmental journalism outlet (Planet Detroit) recommend upcoming public meetings to readers of an article.
+
+Given this article summary and the list of upcoming public meetings, pick the {limit} MOST relevant meetings for readers. Prioritize:
+- Direct relevance to the article's subject matter (e.g., water contamination article → EGLE water quality hearing)
+- Meetings where public comment is accepted and reader participation would be meaningful
+- Meetings happening sooner (within the next 2 weeks) over far-future ones
+- Diversity of engagement opportunities (don't pick 5 meetings from the same committee)
+- Prefer meetings with agendas available over placeholder/generated ones
+
+Article summary: {article_summary}
+Detected issues: {issues_text}
+
+Upcoming meetings:
+{meeting_list_text}
+
+Return ONLY a JSON array of the numbers of your top {limit} picks, most relevant first.
+Example: [3, 7, 1, 12, 5]"""
+
+    try:
+        response = anthropic_client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=200,
+            messages=[{"role": "user", "content": ranking_prompt}]
+        )
+
+        response_text = response.content[0].text.strip()
+
+        # Parse the JSON array
+        if "```" in response_text:
+            response_text = response_text.split("```")[1].split("```")[0].strip()
+            if response_text.startswith("json"):
+                response_text = response_text[4:].strip()
+
+        picks = json.loads(response_text)
+
+        # Convert 1-indexed picks to meeting objects
+        ranked = []
+        for pick in picks:
+            idx = pick - 1
+            if 0 <= idx < len(meetings):
+                ranked.append(meetings[idx])
+
+        return ranked[:limit]
+
+    except Exception as e:
+        print(f"AI meeting ranking error: {e}")
+        return []
+
+
 def generate_civic_actions(issues: List[str], question: str) -> List[dict]:
     """Generate relevant civic actions based on issues"""
     
@@ -722,15 +833,25 @@ Respond in this exact JSON format:
         analysis.get("detected_issues", []),
         limit=5
     )
-    
+
+    # AI-powered meeting matching: send upcoming meetings to Haiku for ranking
+    upcoming_meetings = get_upcoming_meetings(limit=200)
+    related_meetings = rank_meetings_with_ai(
+        upcoming_meetings,
+        analysis.get("summary", ""),
+        analysis.get("detected_issues", []),
+        limit=5
+    )
+
     elapsed_time = int((time.time() - start_time) * 1000)
-    
+
     return {
         "detected_issues": analysis.get("detected_issues", []),
         "entities": analysis.get("entities", []),
         "summary": analysis.get("summary", ""),
         "civic_actions": analysis.get("civic_actions", []),
         "related_organizations": related_organizations,
+        "related_meetings": related_meetings,
         "analysis_time_ms": elapsed_time
     }
 
