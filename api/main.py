@@ -316,6 +316,7 @@ Given this article summary and the list of upcoming public meetings, pick the {l
 - Meetings happening sooner (within the next 2 weeks) over far-future ones
 - Diversity of engagement opportunities (don't pick 5 meetings from the same committee)
 - Prefer meetings with agendas available over placeholder/generated ones
+- If a recurring meeting appears multiple times, pick the SOONEST occurrence and deprioritize later instances. Use the remaining slots for different meetings instead.
 
 Article summary: {article_summary}
 Detected issues: {issues_text}
