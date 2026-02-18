@@ -714,42 +714,14 @@ Respond in this exact JSON format:
             "civic_actions": []
         }
     
-    # Org matching: mentioned orgs first, then AI-ranked suggestions
+    # AI-powered org matching: send all orgs to Haiku for semantic ranking
     all_orgs = get_all_organizations()
-    entities = [e.lower() for e in analysis.get("entities", [])]
-
-    # Find orgs from our database that are mentioned in the article text
-    # or that match an entity Claude extracted from the article
-    mentioned_orgs = []
-    article_lower = article_text.lower()
-    for org in all_orgs:
-        name = org.get("name", "")
-        if len(name) <= 3:
-            continue
-        name_lower = name.lower()
-        # Check if org name appears in article text
-        if name_lower in article_lower:
-            mentioned_orgs.append(org)
-            continue
-        # Check if any extracted entity matches the org name
-        if any(name_lower in e or e in name_lower for e in entities if len(e) > 3):
-            mentioned_orgs.append(org)
-
-    # Fill remaining slots with AI-ranked suggestions
-    mentioned_names = {o["name"] for o in mentioned_orgs}
-    remaining_slots = max(0, 5 - len(mentioned_orgs))
-    ai_ranked = rank_organizations_with_ai(
+    related_organizations = rank_organizations_with_ai(
         all_orgs,
         analysis.get("summary", ""),
         analysis.get("detected_issues", []),
-        limit=remaining_slots + 3  # fetch extras in case of overlap
-    ) if remaining_slots > 0 else []
-
-    # Combine: mentioned first, then AI picks (no duplicates)
-    related_organizations = list(mentioned_orgs)
-    for org in ai_ranked:
-        if org["name"] not in mentioned_names and len(related_organizations) < 5:
-            related_organizations.append(org)
+        limit=5
+    )
     
     elapsed_time = int((time.time() - start_time) * 1000)
     
