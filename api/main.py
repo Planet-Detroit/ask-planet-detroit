@@ -262,6 +262,23 @@ def get_upcoming_meetings(limit: int = 200) -> List[dict]:
         return []
 
 
+def get_open_comment_periods(limit: int = 50) -> List[dict]:
+    """Fetch open comment periods from Supabase."""
+    try:
+        today = datetime.now(timezone.utc).date().isoformat()
+        response = supabase.from_("comment_periods")\
+            .select("*")\
+            .gte("end_date", today)\
+            .eq("status", "open")\
+            .order("end_date", desc=False)\
+            .limit(limit)\
+            .execute()
+        return response.data or []
+    except Exception as e:
+        print(f"Error fetching comment periods: {e}")
+        return []
+
+
 def rank_meetings_with_ai(
     meetings: List[dict],
     article_summary: str,
@@ -355,6 +372,111 @@ Example: [3, 7, 1, 12, 5]"""
 
     except Exception as e:
         print(f"AI meeting ranking error: {e}")
+        return []
+
+
+def rank_comment_periods_with_ai(
+    periods: List[dict],
+    article_summary: str,
+    detected_issues: List[str],
+    limit: int = 3
+) -> List[dict]:
+    """Use Claude to pick the most relevant comment periods for an article.
+
+    Sends open comment periods to Haiku and lets it semantically select the best
+    matches based on article content, agency relevance, and deadline urgency.
+    Cost: ~$0.01 per call (comment periods are few).
+    """
+
+    if not periods or not article_summary:
+        return []
+
+    # Build compact period list for the prompt
+    today = datetime.now(timezone.utc).date()
+    period_descriptions = []
+    for i, p in enumerate(periods):
+        title = p.get("title", "Unknown")
+        agency = p.get("agency", "")
+        end_date = p.get("end_date", "")
+        description = (p.get("description") or "")[:200]
+        tags = ", ".join(p.get("issue_tags") or [])
+        comment_url = "has link" if p.get("comment_url") else "no link"
+
+        days_left = ""
+        if end_date:
+            try:
+                end = datetime.fromisoformat(end_date).date()
+                days_left = f"{(end - today).days} days left"
+            except Exception:
+                pass
+
+        desc = f"{i+1}. {title} ({agency})"
+        if days_left:
+            desc += f" — deadline {end_date}, {days_left}"
+        desc += f", {comment_url}"
+        if tags:
+            desc += f" | tags: {tags}"
+        if description:
+            desc += f" | {description}"
+        period_descriptions.append(desc)
+
+    period_list_text = "\n".join(period_descriptions)
+    issues_text = ", ".join(detected_issues) if detected_issues else "general"
+
+    ranking_prompt = f"""You are helping a Michigan environmental journalism outlet (Planet Detroit) recommend open public comment periods to readers of an article.
+
+Given this article summary and the list of open comment periods, pick the {limit} MOST relevant comment periods for readers. Prioritize:
+- Direct relevance to the article's subject matter (e.g., air quality article → EGLE air permit comment period)
+- Deadline urgency (comment periods closing soon are higher priority)
+- Significance of the decision being commented on
+- Geographic overlap with the article's focus area
+- Accessibility of the comment method (periods with links to submit comments are preferred)
+
+Article summary: {article_summary}
+Detected issues: {issues_text}
+
+Open comment periods:
+{period_list_text}
+
+Return ONLY a JSON array of the numbers of your top {limit} picks, most relevant first.
+Example: [2, 5, 1]"""
+
+    try:
+        response = anthropic_client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=200,
+            messages=[{"role": "user", "content": ranking_prompt}]
+        )
+
+        response_text = response.content[0].text.strip()
+
+        # Parse the JSON array
+        if "```" in response_text:
+            response_text = response_text.split("```")[1].split("```")[0].strip()
+            if response_text.startswith("json"):
+                response_text = response_text[4:].strip()
+
+        picks = json.loads(response_text)
+
+        # Convert 1-indexed picks to period objects
+        ranked = []
+        for pick in picks:
+            idx = pick - 1
+            if 0 <= idx < len(periods):
+                # Add days_remaining to each selected period
+                period = periods[idx]
+                if period.get("end_date"):
+                    try:
+                        end = datetime.fromisoformat(period["end_date"]).date()
+                        period["days_remaining"] = max(0, (end - today).days)
+                    except Exception:
+                        pass
+                ranked.append(period)
+
+        return ranked[:limit]
+
+    except Exception as e:
+        print(f"AI comment period ranking error: {e}")
         return []
 
 
@@ -844,6 +966,15 @@ Respond in this exact JSON format:
         limit=5
     )
 
+    # AI-powered comment period matching: send open periods to Haiku for ranking
+    open_periods = get_open_comment_periods(limit=50)
+    related_comment_periods = rank_comment_periods_with_ai(
+        open_periods,
+        analysis.get("summary", ""),
+        analysis.get("detected_issues", []),
+        limit=3
+    )
+
     elapsed_time = int((time.time() - start_time) * 1000)
 
     return {
@@ -853,6 +984,7 @@ Respond in this exact JSON format:
         "civic_actions": analysis.get("civic_actions", []),
         "related_organizations": related_organizations,
         "related_meetings": related_meetings,
+        "related_comment_periods": related_comment_periods,
         "analysis_time_ms": elapsed_time
     }
 
