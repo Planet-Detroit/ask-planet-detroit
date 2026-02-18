@@ -901,12 +901,25 @@ async def analyze_article(request: AnalyzeArticleRequest):
 
 3. SUMMARY: One paragraph summary of what the article is about (2-3 sentences)
 
-4. CIVIC_ACTIONS: 4-6 specific civic actions readers could take based on this article.
+4. CIVIC_ACTIONS: 3-5 actions that connect readers to civic infrastructure related to this article.
+
+   IMPORTANT EDITORIAL GUIDELINES — this is for a journalism outlet, not an advocacy organization:
+   - YES: Actions that connect people to democratic processes, public information, and civic institutions
+     (attend a public meeting, submit a public comment, look up your representative, check a public database,
+     read a government report, find your polling place, request public records, test your water, check air quality)
+   - NO: Actions that advocate for specific policy positions or tell readers what to support/oppose
+     (sign a petition, call your representative to demand X, support/oppose a bill, join a campaign)
+   - The goal is to INFORM and CONNECT, not to PERSUADE. Show readers WHERE decisions are being made
+     and HOW to participate — never tell them WHAT position to take.
+   - Be specific: name the actual agency, docket, database, or government body. Avoid vague actions.
+   - If the article mentions a specific public proceeding (rate case, permit application, rulemaking),
+     reference it by name and tell readers where to find it.
+
    For each action, provide:
-   - action_type: one of [attend, comment, follow, petition, report, monitor, test, check, subscribe, contact]
-   - title: Short action title
-   - description: One sentence description
-   - url: If applicable, a relevant URL (or null)
+   - action_type: one of [attend, comment, learn, monitor, check, lookup, request, vote]
+   - title: Short action title (imperative verb)
+   - description: One concrete sentence telling the reader exactly what to do and where
+   - url: A relevant government or institutional URL (or null if not applicable)
 
 Article text:
 {article_text}
