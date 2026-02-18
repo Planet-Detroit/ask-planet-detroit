@@ -480,6 +480,109 @@ Example: [2, 5, 1]"""
         return []
 
 
+def get_all_officials() -> List[dict]:
+    """Fetch all elected officials from Supabase."""
+    try:
+        response = supabase.from_("officials")\
+            .select("*")\
+            .order("family_name")\
+            .execute()
+        return response.data or []
+    except Exception as e:
+        print(f"Error fetching officials: {e}")
+        return []
+
+
+def rank_officials_with_ai(
+    officials: List[dict],
+    article_summary: str,
+    detected_issues: List[str],
+    limit: int = 3
+) -> List[dict]:
+    """Use Claude to pick the most relevant elected officials for an article.
+
+    Sends all ~147 MI legislators with committee names + roles to Haiku.
+    Cost: ~$0.01-0.02 per call.
+    """
+
+    if not officials or not article_summary:
+        return []
+
+    # Build compact official list for the prompt
+    official_descriptions = []
+    for i, o in enumerate(officials):
+        name = o.get("name", "Unknown")
+        party = o.get("party", "")
+        chamber = "Senate" if o.get("chamber") == "upper" else "House"
+        district = o.get("current_district", "")
+        committees = o.get("committees") or []
+        roles = o.get("committee_roles") or []
+
+        # Highlight leadership roles
+        leadership = [
+            f"{r['committee']} ({r['role']})"
+            for r in roles
+            if r.get("role") and r["role"] != "member"
+        ]
+
+        desc = f"{i+1}. {name} ({party}, {chamber} Dist. {district})"
+        if committees:
+            desc += f" [{', '.join(committees[:5])}]"
+        if leadership:
+            desc += f" LEADERSHIP: {'; '.join(leadership)}"
+        official_descriptions.append(desc)
+
+    official_list_text = "\n".join(official_descriptions)
+    issues_text = ", ".join(detected_issues) if detected_issues else "general"
+
+    ranking_prompt = f"""You are helping a Michigan environmental journalism outlet (Planet Detroit) recommend elected officials to readers of an article — officials whose committee jurisdictions are relevant to the article's topic.
+
+Given this article summary and the full list of Michigan state legislators with their committee assignments, pick the {limit} MOST relevant officials for readers. Prioritize:
+- Committee jurisdiction match (e.g., energy article → Energy Policy committee members)
+- Leadership positions (chairs/vice-chairs of relevant committees carry more weight)
+- Geographic relevance to the article's focus area
+- Diversity of representation (mix of chambers, parties when relevant)
+
+Article summary: {article_summary}
+Detected issues: {issues_text}
+
+Officials:
+{official_list_text}
+
+Return ONLY a JSON array of the numbers of your top {limit} picks, most relevant first.
+Example: [3, 7, 1]"""
+
+    try:
+        response = anthropic_client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=200,
+            messages=[{"role": "user", "content": ranking_prompt}]
+        )
+
+        response_text = response.content[0].text.strip()
+
+        # Parse the JSON array
+        if "```" in response_text:
+            response_text = response_text.split("```")[1].split("```")[0].strip()
+            if response_text.startswith("json"):
+                response_text = response_text[4:].strip()
+
+        picks = json.loads(response_text)
+
+        # Convert 1-indexed picks to official objects
+        ranked = []
+        for pick in picks:
+            idx = pick - 1
+            if 0 <= idx < len(officials):
+                ranked.append(officials[idx])
+
+        return ranked[:limit]
+
+    except Exception as e:
+        print(f"AI official ranking error: {e}")
+        return []
+
+
 def generate_civic_actions(issues: List[str], question: str) -> List[dict]:
     """Generate relevant civic actions based on issues"""
     
@@ -856,6 +959,58 @@ async def get_organization(org_id: str):
         raise HTTPException(status_code=404, detail="Organization not found")
 
 # =============================================================================
+# Officials Endpoints
+# =============================================================================
+
+@app.get("/api/officials")
+async def list_officials(
+    chamber: Optional[str] = Query(None, description="Filter by chamber: upper, lower"),
+    search: Optional[str] = Query(None, description="Search by name or committee"),
+    party: Optional[str] = Query(None, description="Filter by party"),
+    limit: int = Query(200, le=500),
+    offset: int = Query(0)
+):
+    """List elected officials with optional filters"""
+    try:
+        query = supabase.from_("officials")\
+            .select("*")\
+            .order("family_name")
+
+        if chamber:
+            query = query.eq("chamber", chamber)
+
+        if party:
+            query = query.eq("party", party)
+
+        if search:
+            query = query.ilike("name", f"%{search}%")
+
+        query = query.range(offset, offset + limit - 1)
+
+        response = query.execute()
+        officials = response.data or []
+
+        return {"officials": officials, "count": len(officials)}
+
+    except Exception as e:
+        print(f"Officials error: {e}")
+        return {"officials": [], "count": 0}
+
+@app.get("/api/officials/{official_id}")
+async def get_official(official_id: str):
+    """Get a single official by ID"""
+    try:
+        response = supabase.from_("officials")\
+            .select("*")\
+            .eq("id", official_id)\
+            .single()\
+            .execute()
+
+        return response.data
+    except Exception as e:
+        raise HTTPException(status_code=404, detail="Official not found")
+
+# =============================================================================
 # Civic Hub Combined Endpoint
 # =============================================================================
 
@@ -988,6 +1143,15 @@ Respond in this exact JSON format:
         limit=3
     )
 
+    # AI-powered official matching: send all officials to Haiku for ranking
+    all_officials = get_all_officials()
+    related_officials = rank_officials_with_ai(
+        all_officials,
+        analysis.get("summary", ""),
+        analysis.get("detected_issues", []),
+        limit=3
+    )
+
     elapsed_time = int((time.time() - start_time) * 1000)
 
     return {
@@ -998,6 +1162,7 @@ Respond in this exact JSON format:
         "related_organizations": related_organizations,
         "related_meetings": related_meetings,
         "related_comment_periods": related_comment_periods,
+        "related_officials": related_officials,
         "analysis_time_ms": elapsed_time
     }
 

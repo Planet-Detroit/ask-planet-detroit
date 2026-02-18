@@ -10,6 +10,10 @@ supabase>=2.5.0
 python-dotenv>=1.0.0
 pydantic>=2.6.0
 
+# Officials import (scripts/import_officials.py)
+pyyaml>=6.0
+requests>=2.31.0
+
 # Article ingestion (scripts/ingest_articles.py)
 beautifulsoup4>=4.12.0
 lxml>=5.1.0
