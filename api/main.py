@@ -386,8 +386,9 @@ async def search(request: SearchRequest):
             print(f"Synthesis error: {e}")
             answer = "Unable to synthesize answer at this time."
     
-    # Get related organizations
-    related_orgs = get_related_organizations(detected_issues)
+    # Get related organizations via AI ranking
+    all_orgs = get_all_organizations()
+    related_orgs = rank_organizations_with_ai(all_orgs, answer, detected_issues, limit=6)
     
     # Generate civic actions
     civic_actions = generate_civic_actions(detected_issues, question)
