@@ -47,6 +47,39 @@ app.add_middleware(
 )
 
 # =============================================================================
+# Startup: auto-expire past meetings and closed comment periods
+# =============================================================================
+
+@app.on_event("startup")
+async def expire_stale_records():
+    """Mark past meetings and expired comment periods on startup."""
+    now = datetime.now(timezone.utc).isoformat()
+    today = datetime.now(timezone.utc).date().isoformat()
+    try:
+        result = supabase.from_("meetings")\
+            .update({"status": "past"})\
+            .eq("status", "upcoming")\
+            .lt("start_datetime", now)\
+            .execute()
+        count = len(result.data) if result.data else 0
+        if count:
+            print(f"Startup: marked {count} past meetings")
+    except Exception as e:
+        print(f"Startup: meetings expire error: {e}")
+
+    try:
+        result = supabase.from_("comment_periods")\
+            .update({"status": "closed"})\
+            .eq("status", "open")\
+            .lt("end_date", today)\
+            .execute()
+        count = len(result.data) if result.data else 0
+        if count:
+            print(f"Startup: closed {count} expired comment periods")
+    except Exception as e:
+        print(f"Startup: comment periods expire error: {e}")
+
+# =============================================================================
 # Request/Response Models
 # =============================================================================
 

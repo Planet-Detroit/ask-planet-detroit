@@ -1,4 +1,5 @@
-# Meeting Scrapers Requirements
+# Scraper dependencies (used by daily-meetings-sync GitHub Action)
+# Kept separate because Playwright is heavy (~150MB) and only needed here
 playwright>=1.40.0
-supabase>=2.0.0
+supabase>=2.5.0
 python-dotenv>=1.0.0
