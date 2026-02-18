@@ -105,59 +105,112 @@ Answer:"""
     
     return response.content[0].text
 
-def get_related_organizations(issues: List[str], limit: int = 5) -> List[dict]:
-    """Get organizations related to the detected issues"""
-    
-    issue_to_focus = {
-        "data_centers": ["Energy", "Climate", "Technology"],
-        "dte_energy": ["Energy", "Utilities", "Consumer Protection"],
-        "air_quality": ["Air Quality", "Environmental Health", "Pollution"],
-        "drinking_water": ["Water", "Environmental Health", "Public Health"],
-        "climate": ["Climate", "Sustainability", "Energy"],
-        "environmental_justice": ["Environmental Justice", "Community", "Equity"]
-    }
-    
-    focus_areas = []
-    for issue in issues:
-        focus_areas.extend(issue_to_focus.get(issue, []))
-    focus_areas = list(set(focus_areas))
-    
-    if not focus_areas:
-        return []
-    
+def get_all_organizations() -> List[dict]:
+    """Fetch all organizations from Supabase."""
     try:
         response = supabase.from_("organizations")\
-            .select("name, url, mission_statement_text, focus, region")\
-            .limit(50)\
+            .select("name, url, mission_statement_text, focus, region, city")\
+            .order("name")\
             .execute()
-        
+
         if not response.data:
             return []
-        
-        # Filter and score organizations
-        matched_orgs = []
-        for org in response.data:
-            org_focus = org.get("focus") or []
-            if isinstance(org_focus, str):
-                org_focus = [org_focus]
-            
-            # Count matching focus areas
-            matches = sum(1 for f in focus_areas if any(f.lower() in of.lower() for of in org_focus))
-            if matches > 0:
-                org["_match_score"] = matches
-                matched_orgs.append(org)
-        
-        # Sort by match score and return top results
-        matched_orgs.sort(key=lambda x: x.get("_match_score", 0), reverse=True)
-        
-        # Remove internal score before returning
-        for org in matched_orgs:
-            org.pop("_match_score", None)
-        
-        return matched_orgs[:limit]
-        
+
+        skip_names = {"test", "test org", "example", "sample"}
+        return [
+            org for org in response.data
+            if org.get("name", "").strip()
+            and org.get("name", "").strip().lower() not in skip_names
+        ]
+
     except Exception as e:
         print(f"Error fetching organizations: {e}")
+        return []
+
+
+def rank_organizations_with_ai(
+    all_orgs: List[dict],
+    article_summary: str,
+    detected_issues: List[str],
+    limit: int = 6
+) -> List[dict]:
+    """Use Claude to pick the most relevant orgs for an article.
+
+    Sends the full org directory (~600 orgs, ~33K tokens) to Haiku and lets
+    it semantically select the best matches. No keyword mapping needed.
+    Cost: ~$0.03 per call.
+    """
+
+    if not all_orgs or not article_summary:
+        return []
+
+    # Build compact org list for the prompt
+    org_descriptions = []
+    for i, org in enumerate(all_orgs):
+        name = org.get("name", "Unknown")
+        mission = (org.get("mission_statement_text") or "")[:150]
+        focus = ", ".join(org.get("focus") or [])
+        city = org.get("city") or ""
+        region = org.get("region") or ""
+        location = f"{city}, {region}".strip(", ")
+
+        desc = f"{i+1}. {name}"
+        if location:
+            desc += f" ({location})"
+        if focus:
+            desc += f" [{focus}]"
+        if mission:
+            desc += f" — {mission}"
+        org_descriptions.append(desc)
+
+    org_list_text = "\n".join(org_descriptions)
+    issues_text = ", ".join(detected_issues) if detected_issues else "general"
+
+    ranking_prompt = f"""You are helping a Michigan environmental journalism outlet (Planet Detroit) recommend organizations to readers.
+
+Given this article summary and the full directory of Michigan environmental organizations, pick the {limit} MOST relevant orgs for readers of this article. Prioritize:
+- Direct topical relevance to the article's subject matter
+- Geographic proximity (local orgs for local stories, statewide for statewide)
+- Orgs readers can engage with (advocacy groups, community orgs > industry trade groups)
+- Diversity of perspectives (don't pick 6 orgs that all do the same thing)
+
+Article summary: {article_summary}
+Detected issues: {issues_text}
+
+Organizations:
+{org_list_text}
+
+Return ONLY a JSON array of the numbers of your top {limit} picks, most relevant first.
+Example: [3, 7, 1, 12, 5, 9]"""
+
+    try:
+        response = anthropic_client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=200,
+            messages=[{"role": "user", "content": ranking_prompt}]
+        )
+
+        response_text = response.content[0].text.strip()
+
+        # Parse the JSON array
+        if "```" in response_text:
+            response_text = response_text.split("```")[1].split("```")[0].strip()
+            if response_text.startswith("json"):
+                response_text = response_text[4:].strip()
+
+        picks = json.loads(response_text)
+
+        # Convert 1-indexed picks to org objects
+        ranked = []
+        for pick in picks:
+            idx = pick - 1  # Convert to 0-indexed
+            if 0 <= idx < len(all_orgs):
+                ranked.append(all_orgs[idx])
+
+        return ranked[:limit]
+
+    except Exception as e:
+        print(f"AI org ranking error: {e}")
         return []
 
 def generate_civic_actions(issues: List[str], question: str) -> List[dict]:
@@ -627,8 +680,11 @@ Respond in this exact JSON format:
             "civic_actions": []
         }
     
-    # Get related organizations based on detected issues
-    related_organizations = get_related_organizations(
+    # AI-powered org matching: send all orgs to Haiku for semantic ranking
+    all_orgs = get_all_organizations()
+    related_organizations = rank_organizations_with_ai(
+        all_orgs,
+        analysis.get("summary", ""),
         analysis.get("detected_issues", []),
         limit=6
     )
