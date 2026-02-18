@@ -18,6 +18,7 @@ on:
           - mpsc
           - glwa
           - detroit
+          - egle
 
 jobs:
   scrape-meetings:
@@ -59,6 +60,7 @@ jobs:
           MPSC_COUNT=$(grep -oP 'MPSC: \K\d+' scrape_output.txt || echo "0")
           GLWA_COUNT=$(grep -oP 'GLWA: \K\d+' scrape_output.txt || echo "0")
           DETROIT_COUNT=$(grep -oP 'DETROIT: \K\d+' scrape_output.txt || echo "0")
+          EGLE_COUNT=$(grep -oP 'EGLE: \K\d+' scrape_output.txt || echo "0")
           TOTAL=$(grep -oP 'TOTAL: \K\d+' scrape_output.txt || echo "0")
           
           # Check for errors
@@ -71,6 +73,7 @@ jobs:
           echo "mpsc_count=$MPSC_COUNT" >> $GITHUB_OUTPUT
           echo "glwa_count=$GLWA_COUNT" >> $GITHUB_OUTPUT
           echo "detroit_count=$DETROIT_COUNT" >> $GITHUB_OUTPUT
+          echo "egle_count=$EGLE_COUNT" >> $GITHUB_OUTPUT
           echo "total_count=$TOTAL" >> $GITHUB_OUTPUT
       
       - name: Create summary
@@ -85,6 +88,7 @@ jobs:
           echo "| MPSC | ${{ steps.scrape.outputs.mpsc_count }} |" >> $GITHUB_STEP_SUMMARY
           echo "| GLWA | ${{ steps.scrape.outputs.glwa_count }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Detroit | ${{ steps.scrape.outputs.detroit_count }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| EGLE | ${{ steps.scrape.outputs.egle_count }} |" >> $GITHUB_STEP_SUMMARY
           echo "| **Total** | **${{ steps.scrape.outputs.total_count }}** |" >> $GITHUB_STEP_SUMMARY
           
           if [ "${{ steps.scrape.outputs.has_errors }}" = "true" ]; then
@@ -122,6 +126,10 @@ jobs:
                   {
                     "type": "mrkdwn",
                     "text": "*Detroit:*\n${{ steps.scrape.outputs.detroit_count }} meetings"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*EGLE:*\n${{ steps.scrape.outputs.egle_count }} meetings"
                   },
                   {
                     "type": "mrkdwn",

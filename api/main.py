@@ -451,7 +451,7 @@ async def list_meetings(
     status: Optional[str] = Query(None, description="Filter by status: upcoming, past, all"),
     agency: Optional[str] = Query(None, description="Filter by agency"),
     issue: Optional[str] = Query(None, description="Filter by issue tag"),
-    limit: int = Query(25, le=100),
+    limit: int = Query(50, le=500),
     offset: int = Query(0)
 ):
     """List meetings with optional filters"""
