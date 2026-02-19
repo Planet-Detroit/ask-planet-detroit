@@ -11,7 +11,8 @@ from zoneinfo import ZoneInfo
 from typing import Optional, List
 from dotenv import load_dotenv
 
-from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi import Depends, FastAPI, HTTPException, Query, Request
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -63,6 +64,30 @@ app.add_middleware(
     allow_methods=["GET", "POST"],
     allow_headers=["Content-Type", "Authorization"],
 )
+
+# =============================================================================
+# API key authentication — protects expensive AI endpoints
+# =============================================================================
+# Set API_KEYS env var as a comma-separated list of valid keys.
+# If not set, auth is disabled (allows local dev without keys).
+# Only applied to /api/search and /api/analyze-article.
+
+_bearer_scheme = HTTPBearer(auto_error=False)
+
+def _get_allowed_keys() -> set:
+    raw = os.getenv("API_KEYS", "")
+    return {k.strip() for k in raw.split(",") if k.strip()}
+
+async def require_api_key(
+    credentials: HTTPAuthorizationCredentials = Depends(_bearer_scheme),
+):
+    """Dependency that enforces API key auth on AI endpoints.
+    If API_KEYS env var is empty/unset, auth is skipped (local dev mode)."""
+    allowed = _get_allowed_keys()
+    if not allowed:
+        return  # No keys configured — skip auth (dev mode)
+    if not credentials or credentials.credentials not in allowed:
+        raise HTTPException(status_code=401, detail="Invalid or missing API key")
 
 # =============================================================================
 # Startup: auto-expire past meetings and closed comment periods
@@ -842,7 +867,7 @@ async def get_stats():
             "open_comment_periods": 0
         }
 
-@app.post("/api/search")
+@app.post("/api/search", dependencies=[Depends(require_api_key)])
 @limiter.limit("30/minute")
 async def search(request: Request, request_body: SearchRequest):
     """Search articles and synthesize an answer"""
@@ -1169,7 +1194,7 @@ async def get_civic_data():
 # Article Analysis Endpoint (for Civic Action Box Builder)
 # =============================================================================
 
-@app.post("/api/analyze-article")
+@app.post("/api/analyze-article", dependencies=[Depends(require_api_key)])
 @limiter.limit("10/minute")
 async def analyze_article(request: Request, request_body: AnalyzeArticleRequest):
     """

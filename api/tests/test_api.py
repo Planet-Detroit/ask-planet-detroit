@@ -316,3 +316,61 @@ class TestSearchResponseShape:
             data = response.json()
             # Should have these top-level keys
             assert "results" in data or "chunks" in data or "answer" in data
+
+
+# =========================================================================
+# API key authentication
+# =========================================================================
+
+class TestApiKeyAuth:
+    """Test API key authentication on AI endpoints."""
+
+    def test_search_works_without_key_when_no_keys_configured(self):
+        # No API_KEYS env var set → auth is skipped (dev mode)
+        with patch("main.get_embedding", return_value=[0.0] * 1536):
+            response = client.post("/api/search", json={"question": "test query here"})
+            assert response.status_code == 200
+
+    def test_search_rejects_missing_key_when_keys_configured(self):
+        with patch.dict(os.environ, {"API_KEYS": "test-key-123,test-key-456"}):
+            response = client.post("/api/search", json={"question": "test query here"})
+            assert response.status_code == 401
+
+    def test_search_rejects_wrong_key_when_keys_configured(self):
+        with patch.dict(os.environ, {"API_KEYS": "test-key-123"}):
+            response = client.post(
+                "/api/search",
+                json={"question": "test query here"},
+                headers={"Authorization": "Bearer wrong-key"},
+            )
+            assert response.status_code == 401
+
+    def test_search_accepts_valid_key(self):
+        with patch.dict(os.environ, {"API_KEYS": "test-key-123,test-key-456"}):
+            with patch("main.get_embedding", return_value=[0.0] * 1536):
+                response = client.post(
+                    "/api/search",
+                    json={"question": "test query here"},
+                    headers={"Authorization": "Bearer test-key-123"},
+                )
+                assert response.status_code == 200
+
+    def test_analyze_rejects_missing_key_when_keys_configured(self):
+        with patch.dict(os.environ, {"API_KEYS": "test-key-123"}):
+            article = "Michigan regulators investigating PFAS contamination " * 5
+            response = client.post(
+                "/api/analyze-article",
+                json={"article_text": article},
+            )
+            assert response.status_code == 401
+
+    def test_meetings_does_not_require_key(self):
+        # Public data endpoints should remain open even with API_KEYS set
+        with patch.dict(os.environ, {"API_KEYS": "test-key-123"}):
+            response = client.get("/api/meetings")
+            assert response.status_code == 200
+
+    def test_organizations_does_not_require_key(self):
+        with patch.dict(os.environ, {"API_KEYS": "test-key-123"}):
+            response = client.get("/api/organizations")
+            assert response.status_code == 200
