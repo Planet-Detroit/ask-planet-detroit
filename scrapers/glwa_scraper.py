@@ -10,6 +10,7 @@ Legistar uses a Telerik RadGrid table (tr.rgRow / tr.rgAltRow) with 13 cells:
 """
 
 import asyncio
+import hashlib
 import os
 import re
 from datetime import datetime
@@ -214,7 +215,7 @@ async def scrape_glwa_meetings():
                     "region": "southeast_michigan",
                     "source": "glwa_scraper",
                     "source_url": detail_url or GLWA_LEGISTAR_URL,
-                    "source_id": f"glwa-{meeting_date.strftime('%Y%m%d')}-{hash(title) % 10000}",
+                    "source_id": f"glwa-{meeting_date.strftime('%Y%m%d')}-{hashlib.md5(title.encode()).hexdigest()[:12]}",
                     "status": "upcoming",
                     "details_url": detail_url,
                     "agenda_url": agenda_url,

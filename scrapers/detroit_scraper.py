@@ -299,7 +299,7 @@ async def scrape_detroit_meetings():
                         "region": "detroit",
                         "source": "detroit_scraper",
                         "source_url": full_url,
-                        "source_id": f"detroit-{meeting_id}" if meeting_id else f"detroit-{meeting_date.strftime('%Y%m%d')}-{hash(title) % 10000}",
+                        "source_id": f"detroit-{meeting_id}" if meeting_id else f"detroit-{meeting_date.strftime('%Y%m%d')}-{hashlib.md5(title.encode()).hexdigest()[:12]}",
                         "status": "upcoming",
                         "details_url": full_url,
                         "agenda_url": agenda_url,

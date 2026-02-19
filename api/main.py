@@ -10,9 +10,12 @@ from datetime import datetime, timezone
 from typing import Optional, List
 from dotenv import load_dotenv
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 from supabase import create_client, Client
 import anthropic
@@ -30,20 +33,34 @@ anthropic_client = anthropic.Anthropic(
     api_key=os.getenv("ANTHROPIC_API_KEY")
 )
 
+# Rate limiter — protects expensive AI endpoints from abuse
+limiter = Limiter(key_func=get_remote_address)
+
 # FastAPI app
 app = FastAPI(
     title="Ask Planet Detroit API",
     description="RAG search API for Planet Detroit journalism",
     version="1.0.0"
 )
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# CORS middleware
+# CORS middleware — restrict to known frontends
+ALLOWED_ORIGINS = [
+    "https://civic-action-builder.vercel.app",
+    "https://newsletter-builder-azure.vercel.app",
+    "https://planetdetroit.org",
+    "https://www.planetdetroit.org",
+    "http://localhost:5173",   # Vite dev
+    "http://localhost:3000",   # Next.js dev
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type", "Authorization"],
 )
 
 # =============================================================================
@@ -790,12 +807,13 @@ async def get_stats():
         }
 
 @app.post("/api/search")
-async def search(request: SearchRequest):
+@limiter.limit("30/minute")
+async def search(request: Request, request_body: SearchRequest):
     """Search articles and synthesize an answer"""
     start_time = time.time()
     
-    question = request.question
-    num_results = request.num_results
+    question = request_body.question
+    num_results = request_body.num_results
     
     # Get embedding for question
     try:
@@ -835,7 +853,7 @@ async def search(request: SearchRequest):
     
     # Synthesize answer
     answer = None
-    if request.synthesize and chunks:
+    if request_body.synthesize and chunks:
         try:
             answer = synthesize_answer(question, chunks)
         except Exception as e:
@@ -1116,14 +1134,15 @@ async def get_civic_data():
 # =============================================================================
 
 @app.post("/api/analyze-article")
-async def analyze_article(request: AnalyzeArticleRequest):
+@limiter.limit("10/minute")
+async def analyze_article(request: Request, request_body: AnalyzeArticleRequest):
     """
     Analyze an article and return detected issues, related organizations,
     and suggested civic actions for the Civic Action Box Builder.
     """
     start_time = time.time()
-    
-    article_text = request.article_text[:15000]  # Limit length
+
+    article_text = request_body.article_text[:15000]  # Limit length
     
     # Use Claude to analyze the article
     analysis_prompt = f"""Analyze this news article and extract:
