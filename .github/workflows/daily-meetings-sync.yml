@@ -67,6 +67,13 @@ jobs:
           else
             echo "has_errors=false" >> $GITHUB_OUTPUT
           fi
+
+          # Check for zero-result warnings
+          if grep -q "WARN" scrape_output.txt; then
+            echo "has_warnings=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_warnings=false" >> $GITHUB_OUTPUT
+          fi
           
           echo "mpsc_count=$MPSC_COUNT" >> $GITHUB_OUTPUT
           echo "glwa_count=$GLWA_COUNT" >> $GITHUB_OUTPUT
@@ -87,9 +94,14 @@ jobs:
           echo "| Detroit | ${{ steps.scrape.outputs.detroit_count }} |" >> $GITHUB_STEP_SUMMARY
           echo "| **Total** | **${{ steps.scrape.outputs.total_count }}** |" >> $GITHUB_STEP_SUMMARY
           
+          if [ "${{ steps.scrape.outputs.has_warnings }}" = "true" ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "⚠️ **Some scrapers returned 0 results.** The target site may have changed or the scraper may need fixing." >> $GITHUB_STEP_SUMMARY
+          fi
+
           if [ "${{ steps.scrape.outputs.has_errors }}" = "true" ]; then
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "⚠️ **Some errors occurred.** Check logs for details." >> $GITHUB_STEP_SUMMARY
+            echo "❌ **Some errors occurred.** Check logs for details." >> $GITHUB_STEP_SUMMARY
           fi
       
       - name: Notify Slack on success

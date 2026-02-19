@@ -132,23 +132,40 @@ async def run_all_scrapers():
     print("=" * 70)
 
     total = 0
+    warnings = []
     for source, meetings in results.items():
         count = len(meetings) if meetings else 0
         total += count
-        print(f"  {source.upper()}: {count} meetings")
+        status_icon = "OK" if count > 0 else "WARN"
+        print(f"  {source.upper()}: {count} meetings [{status_icon}]")
+        if count == 0 and source not in [e.split(":")[0].strip().lower() for e in errors]:
+            warnings.append(f"{source.upper()}: returned 0 meetings (site may have changed or scraper may be broken)")
 
     print(f"\n  TOTAL: {total} meetings")
+
+    if warnings:
+        print(f"\n  WARNINGS: {len(warnings)}")
+        for warning in warnings:
+            print(f"    ⚠ {warning}")
 
     if errors:
         print(f"\n  ERRORS: {len(errors)}")
         for error in errors:
-            print(f"    - {error}")
+            print(f"    ✗ {error}")
+
+    # Exit with non-zero code if any scraper failed or returned 0 results
+    # This lets GitHub Actions detect problems
+    if errors or warnings:
+        print("\n" + "=" * 70)
+        print("COMPLETE WITH ISSUES")
+        print("=" * 70)
+        return results, errors, warnings
 
     print("\n" + "=" * 70)
     print("COMPLETE")
     print("=" * 70)
 
-    return results, errors
+    return results, errors, []
 
 
 async def run_single_scraper(scraper_name):

@@ -7,6 +7,7 @@ import os
 import json
 import time
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 from typing import Optional, List
 from dotenv import load_dotenv
 
@@ -903,9 +904,9 @@ async def list_meetings(
         
         # Status filter
         if status == "upcoming":
-            query = query.gte("start_datetime", datetime.now(timezone.utc).isoformat())
+            query = query.gte("start_datetime", datetime.now(ZoneInfo("America/Detroit")).isoformat())
         elif status == "past":
-            query = query.lt("start_datetime", datetime.now(timezone.utc).isoformat())
+            query = query.lt("start_datetime", datetime.now(ZoneInfo("America/Detroit")).isoformat())
         
         # Agency filter
         if agency:
