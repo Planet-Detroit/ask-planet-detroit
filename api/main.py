@@ -139,6 +139,12 @@ class AnalyzeArticleRequest(BaseModel):
     article_text: str = Field(..., min_length=50, max_length=50000)
     article_url: Optional[str] = Field(None, max_length=2000)
 
+class CivicResponseRequest(BaseModel):
+    email: str = Field(..., min_length=5, max_length=254)
+    article_url: str = Field(..., min_length=10, max_length=2000)
+    actions_taken: List[str] = Field(..., min_length=1)
+    article_title: Optional[str] = Field(None, max_length=500)
+
 # =============================================================================
 # Helper Functions
 # =============================================================================
@@ -1329,6 +1335,46 @@ Respond in this exact JSON format:
         "related_officials": related_officials,
         "analysis_time_ms": elapsed_time
     }
+
+# =============================================================================
+# Civic Responses — tracks reader engagement with action checkboxes
+# =============================================================================
+
+import re
+
+def is_valid_email(email: str) -> bool:
+    """Basic email format validation."""
+    return bool(re.match(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', email))
+
+@app.post("/api/civic-responses")
+@limiter.limit("20/minute")
+async def submit_civic_response(request: Request, body: CivicResponseRequest):
+    """
+    Public endpoint for readers to submit which civic actions they've taken.
+    No authentication required — this is called from embedded WordPress content.
+    Rate limited to 20 requests/minute per IP to prevent abuse.
+    """
+    # Validate email format
+    if not is_valid_email(body.email):
+        raise HTTPException(status_code=400, detail="Invalid email format")
+
+    # Validate at least one action
+    if not body.actions_taken:
+        raise HTTPException(status_code=422, detail="At least one action is required")
+
+    try:
+        result = supabase.from_("civic_responses").insert({
+            "email": body.email,
+            "article_url": body.article_url,
+            "actions_taken": body.actions_taken,
+            "article_title": body.article_title,
+            "user_agent": request.headers.get("user-agent"),
+        }).execute()
+
+        return {"status": "ok", "message": "Response recorded. Thank you for taking civic action!"}
+    except Exception as e:
+        print(f"Error saving civic response: {e}")
+        raise HTTPException(status_code=500, detail="Failed to save response")
 
 # =============================================================================
 # Run server

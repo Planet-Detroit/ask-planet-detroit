@@ -37,6 +37,7 @@ def make_mock_supabase():
     chain.limit.return_value = chain
     chain.range.return_value = chain
     chain.update.return_value = chain
+    chain.insert.return_value = chain
 
     mock.from_.return_value = chain
     mock.table.return_value = chain
@@ -404,3 +405,64 @@ class TestApiKeyAuth:
         with patch.dict(os.environ, {"API_KEYS": "test-key-123"}):
             response = client.get("/api/organizations")
             assert response.status_code == 200
+
+
+# =========================================================================
+# Civic Responses endpoint
+# =========================================================================
+
+class TestCivicResponses:
+    """Test the POST /api/civic-responses endpoint for reader engagement tracking."""
+
+    def test_valid_submission_returns_200(self):
+        """A valid submission with email + actions should succeed."""
+        mock_sb = make_mock_supabase()
+        with patch("main.supabase", mock_sb):
+            response = client.post("/api/civic-responses", json={
+                "email": "reader@example.com",
+                "article_url": "https://planetdetroit.org/2025/01/test-article/",
+                "actions_taken": ["attend_meeting", "submit_comment"],
+                "article_title": "Test Article",
+            })
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "ok"
+
+    def test_missing_email_returns_422(self):
+        """Missing email should fail Pydantic validation."""
+        response = client.post("/api/civic-responses", json={
+            "article_url": "https://planetdetroit.org/2025/01/test/",
+            "actions_taken": ["attend_meeting"],
+        })
+        assert response.status_code == 422
+
+    def test_empty_actions_returns_422(self):
+        """Empty actions list should fail validation."""
+        response = client.post("/api/civic-responses", json={
+            "email": "reader@example.com",
+            "article_url": "https://planetdetroit.org/2025/01/test/",
+            "actions_taken": [],
+        })
+        assert response.status_code == 422
+
+    def test_bad_email_returns_400(self):
+        """Malformed email should be rejected by the endpoint's email validation."""
+        response = client.post("/api/civic-responses", json={
+            "email": "not-an-email",
+            "article_url": "https://planetdetroit.org/2025/01/test/",
+            "actions_taken": ["attend_meeting"],
+        })
+        assert response.status_code == 400
+        assert "email" in response.json()["detail"].lower()
+
+    def test_no_auth_required(self):
+        """This is a public endpoint — should work without API key even when keys are configured."""
+        mock_sb = make_mock_supabase()
+        with patch.dict(os.environ, {"API_KEYS": "test-key-123"}):
+            with patch("main.supabase", mock_sb):
+                response = client.post("/api/civic-responses", json={
+                    "email": "reader@example.com",
+                    "article_url": "https://planetdetroit.org/2025/01/test/",
+                    "actions_taken": ["contact_official"],
+                })
+                assert response.status_code == 200
