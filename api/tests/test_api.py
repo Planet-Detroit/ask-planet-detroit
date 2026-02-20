@@ -279,6 +279,26 @@ class TestCORS:
         )
         assert response.headers.get("access-control-allow-origin") == "https://civic.tools.planetdetroit.org"
 
+    def test_cors_allows_brief_tools_custom_domain(self):
+        response = client.options(
+            "/api/search",
+            headers={
+                "Origin": "https://brief.tools.planetdetroit.org",
+                "Access-Control-Request-Method": "GET",
+            },
+        )
+        assert response.headers.get("access-control-allow-origin") == "https://brief.tools.planetdetroit.org"
+
+    def test_cors_allows_newsletter_tools_custom_domain(self):
+        response = client.options(
+            "/api/search",
+            headers={
+                "Origin": "https://newsletter.tools.planetdetroit.org",
+                "Access-Control-Request-Method": "GET",
+            },
+        )
+        assert response.headers.get("access-control-allow-origin") == "https://newsletter.tools.planetdetroit.org"
+
     def test_cors_allows_newsletter_builder(self):
         response = client.options(
             "/api/search",

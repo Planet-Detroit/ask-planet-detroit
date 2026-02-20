@@ -52,6 +52,8 @@ ALLOWED_ORIGINS = [
     "https://civic-action-builder.vercel.app",
     "https://civic.tools.planetdetroit.org",
     "https://newsletter-builder-azure.vercel.app",
+    "https://brief.tools.planetdetroit.org",
+    "https://newsletter.tools.planetdetroit.org",
     "https://planetdetroit.org",
     "https://www.planetdetroit.org",
     "http://localhost:5173",   # Vite dev
