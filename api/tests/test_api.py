@@ -320,6 +320,16 @@ class TestCORS:
         )
         assert response.headers.get("access-control-allow-origin") == "http://localhost:5173"
 
+    def test_cors_allows_localhost_alt_port(self):
+        response = client.options(
+            "/api/meetings",
+            headers={
+                "Origin": "http://localhost:5174",
+                "Access-Control-Request-Method": "GET",
+            },
+        )
+        assert response.headers.get("access-control-allow-origin") == "http://localhost:5174"
+
     def test_cors_blocks_unknown_origin(self):
         response = client.options(
             "/api/meetings",

@@ -57,6 +57,7 @@ ALLOWED_ORIGINS = [
     "https://planetdetroit.org",
     "https://www.planetdetroit.org",
     "http://localhost:5173",   # Vite dev
+    "http://localhost:5174",   # Vite dev (alt port)
     "http://localhost:3000",   # Next.js dev
 ]
 
