@@ -50,6 +50,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 # CORS middleware — restrict to known frontends
 ALLOWED_ORIGINS = [
     "https://civic-action-builder.vercel.app",
+    "https://civic.tools.planetdetroit.org",
     "https://newsletter-builder-azure.vercel.app",
     "https://planetdetroit.org",
     "https://www.planetdetroit.org",

@@ -269,6 +269,16 @@ class TestCORS:
         )
         assert response.headers.get("access-control-allow-origin") == "https://civic-action-builder.vercel.app"
 
+    def test_cors_allows_civic_tools_custom_domain(self):
+        response = client.options(
+            "/api/meetings",
+            headers={
+                "Origin": "https://civic.tools.planetdetroit.org",
+                "Access-Control-Request-Method": "GET",
+            },
+        )
+        assert response.headers.get("access-control-allow-origin") == "https://civic.tools.planetdetroit.org"
+
     def test_cors_allows_newsletter_builder(self):
         response = client.options(
             "/api/search",
