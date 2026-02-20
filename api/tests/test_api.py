@@ -422,45 +422,60 @@ class TestApiKeyAuth:
 # =========================================================================
 
 class TestCivicResponses:
-    """Test the POST /api/civic-responses endpoint for reader engagement tracking."""
+    """Test the POST /api/civic-responses endpoint for reader response form.
 
-    def test_valid_submission_returns_200(self):
-        """A valid submission with email + actions should succeed."""
+    The response form collects a free-text message (required) and optional email
+    from readers after they read a civic action box in an article.
+    """
+
+    def test_valid_submission_with_email_returns_200(self):
+        """A valid submission with message + email should succeed."""
         mock_sb = make_mock_supabase()
         with patch("main.supabase", mock_sb):
             response = client.post("/api/civic-responses", json={
+                "message": "I attended the EGLE hearing last week.",
                 "email": "reader@example.com",
                 "article_url": "https://planetdetroit.org/2025/01/test-article/",
-                "actions_taken": ["attend_meeting", "submit_comment"],
                 "article_title": "Test Article",
             })
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "ok"
 
-    def test_missing_email_returns_422(self):
-        """Missing email should fail Pydantic validation."""
+    def test_valid_submission_without_email_returns_200(self):
+        """Email is optional — submission with just message should succeed."""
+        mock_sb = make_mock_supabase()
+        with patch("main.supabase", mock_sb):
+            response = client.post("/api/civic-responses", json={
+                "message": "I called my representative about this issue.",
+                "article_url": "https://planetdetroit.org/2025/01/test/",
+                "article_title": "Test Article",
+            })
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "ok"
+
+    def test_empty_message_returns_422(self):
+        """Empty message should fail validation (message is required)."""
         response = client.post("/api/civic-responses", json={
+            "message": "",
             "article_url": "https://planetdetroit.org/2025/01/test/",
-            "actions_taken": ["attend_meeting"],
         })
         assert response.status_code == 422
 
-    def test_empty_actions_returns_422(self):
-        """Empty actions list should fail validation."""
+    def test_missing_message_returns_422(self):
+        """Missing message field should fail validation."""
         response = client.post("/api/civic-responses", json={
-            "email": "reader@example.com",
             "article_url": "https://planetdetroit.org/2025/01/test/",
-            "actions_taken": [],
         })
         assert response.status_code == 422
 
     def test_bad_email_returns_400(self):
         """Malformed email should be rejected by the endpoint's email validation."""
         response = client.post("/api/civic-responses", json={
+            "message": "I took action!",
             "email": "not-an-email",
             "article_url": "https://planetdetroit.org/2025/01/test/",
-            "actions_taken": ["attend_meeting"],
         })
         assert response.status_code == 400
         assert "email" in response.json()["detail"].lower()
@@ -471,8 +486,54 @@ class TestCivicResponses:
         with patch.dict(os.environ, {"API_KEYS": "test-key-123"}):
             with patch("main.supabase", mock_sb):
                 response = client.post("/api/civic-responses", json={
-                    "email": "reader@example.com",
+                    "message": "I attended the meeting.",
                     "article_url": "https://planetdetroit.org/2025/01/test/",
-                    "actions_taken": ["contact_official"],
                 })
                 assert response.status_code == 200
+
+
+# =========================================================================
+# Analyze article response includes new context fields
+# =========================================================================
+
+class TestAnalyzeArticleNewFields:
+    """Test that /api/analyze-article returns why_it_matters, whos_deciding, and what_to_watch."""
+
+    def test_response_includes_context_fields(self):
+        """When analysis completes, response should include the 3 new text fields."""
+        # Mock the Anthropic response to include the new fields
+        mock_anthropic = make_mock_anthropic()
+        mock_anthropic.messages.create.return_value.content = [MagicMock(text='''{
+            "detected_issues": ["air_quality"],
+            "entities": ["EGLE"],
+            "summary": "Test summary about air quality.",
+            "why_it_matters": "This matters because air quality affects public health.",
+            "whos_deciding": "EGLE regulators are setting new emission standards.",
+            "what_to_watch": "Watch for the final rule expected in March 2026."
+        }''')]
+
+        mock_sb = make_mock_supabase()
+        with patch("main.supabase", mock_sb):
+            with patch("main.anthropic_client", mock_anthropic):
+                article = "Michigan regulators investigating air pollution in Metro Detroit. " * 5
+                response = client.post("/api/analyze-article", json={"article_text": article})
+
+        assert response.status_code == 200
+        data = response.json()
+        assert "why_it_matters" in data
+        assert "whos_deciding" in data
+        assert "what_to_watch" in data
+        assert data["why_it_matters"] == "This matters because air quality affects public health."
+        assert data["whos_deciding"] == "EGLE regulators are setting new emission standards."
+        assert data["what_to_watch"] == "Watch for the final rule expected in March 2026."
+
+    def test_response_has_empty_strings_when_ai_omits_fields(self):
+        """If AI doesn't return the new fields, they should default to empty strings."""
+        article = "Michigan regulators investigating contamination in drinking water. " * 5
+        response = client.post("/api/analyze-article", json={"article_text": article})
+        assert response.status_code == 200
+        data = response.json()
+        # Fields should exist even if empty
+        assert "why_it_matters" in data
+        assert "whos_deciding" in data
+        assert "what_to_watch" in data

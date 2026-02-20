@@ -141,9 +141,9 @@ class AnalyzeArticleRequest(BaseModel):
     article_url: Optional[str] = Field(None, max_length=2000)
 
 class CivicResponseRequest(BaseModel):
-    email: str = Field(..., min_length=5, max_length=254)
+    message: str = Field(..., min_length=1, max_length=2000)
+    email: Optional[str] = Field(None, max_length=254)
     article_url: str = Field(..., min_length=10, max_length=2000)
-    actions_taken: List[str] = Field(..., min_length=1)
     article_title: Optional[str] = Field(None, max_length=500)
 
 # =============================================================================
@@ -1240,6 +1240,12 @@ Rules:
 
 3. SUMMARY: One paragraph summary of what the article is about (2-3 sentences)
 
+4. WHY_IT_MATTERS: 1-2 paragraphs explaining why this story matters to Metro Detroit residents. Focus on direct impacts to people's health, wallets, or community. Write in an accessible, journalistic tone.
+
+5. WHOS_DECIDING: 1-2 paragraphs identifying who is making the key public decisions related to this article — which agencies, boards, commissions, or elected officials have authority. Include any upcoming decision points or timelines if mentioned.
+
+6. WHAT_TO_WATCH: 1-2 sentences about what readers should watch for next — upcoming votes, rulings, deadlines, or developments.
+
 <article_text>
 {article_text}
 </article_text>
@@ -1248,7 +1254,10 @@ Respond in this exact JSON format:
 {{
   "detected_issues": ["issue1", "issue2"],
   "entities": ["Entity 1", "Entity 2"],
-  "summary": "Summary text here..."
+  "summary": "Summary text here...",
+  "why_it_matters": "Why this matters text...",
+  "whos_deciding": "Who is making decisions text...",
+  "what_to_watch": "What to watch for next text..."
 }}"""
 
     try:
@@ -1329,6 +1338,9 @@ Respond in this exact JSON format:
         "detected_issues": analysis.get("detected_issues", []),
         "entities": analysis.get("entities", []),
         "summary": analysis.get("summary", ""),
+        "why_it_matters": analysis.get("why_it_matters", ""),
+        "whos_deciding": analysis.get("whos_deciding", ""),
+        "what_to_watch": analysis.get("what_to_watch", ""),
         "civic_actions": civic_actions,
         "related_organizations": related_organizations,
         "related_meetings": related_meetings,
@@ -1351,27 +1363,25 @@ def is_valid_email(email: str) -> bool:
 @limiter.limit("20/minute")
 async def submit_civic_response(request: Request, body: CivicResponseRequest):
     """
-    Public endpoint for readers to submit which civic actions they've taken.
+    Public endpoint for readers to tell us what civic action they took.
     No authentication required — this is called from embedded WordPress content.
     Rate limited to 20 requests/minute per IP to prevent abuse.
     """
-    # Validate email format
-    if not is_valid_email(body.email):
+    # Validate email format if provided
+    if body.email and not is_valid_email(body.email):
         raise HTTPException(status_code=400, detail="Invalid email format")
 
-    # Validate at least one action
-    if not body.actions_taken:
-        raise HTTPException(status_code=422, detail="At least one action is required")
+    row = {
+        "message": body.message,
+        "article_url": body.article_url,
+        "article_title": body.article_title,
+        "user_agent": request.headers.get("user-agent"),
+    }
+    if body.email:
+        row["email"] = body.email
 
     try:
-        result = supabase.from_("civic_responses").insert({
-            "email": body.email,
-            "article_url": body.article_url,
-            "actions_taken": body.actions_taken,
-            "article_title": body.article_title,
-            "user_agent": request.headers.get("user-agent"),
-        }).execute()
-
+        supabase.from_("civic_responses").insert(row).execute()
         return {"status": "ok", "message": "Response recorded. Thank you for taking civic action!"}
     except Exception as e:
         print(f"Error saving civic response: {e}")
