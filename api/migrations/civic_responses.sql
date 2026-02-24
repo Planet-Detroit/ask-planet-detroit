@@ -1,12 +1,13 @@
 -- Civic Responses table
--- Tracks reader engagement with civic action checkboxes embedded in articles
+-- Tracks reader responses to civic action boxes embedded in articles
 -- Created: 2026-02-19
+-- Updated: 2026-02-24 — schema aligned with API endpoint (message + optional email)
 
 CREATE TABLE civic_responses (
     id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-    email text NOT NULL,
+    message text NOT NULL,
+    email text,
     article_url text NOT NULL,
-    actions_taken jsonb NOT NULL DEFAULT '[]',
     article_title text,
     user_agent text,
     created_at timestamptz DEFAULT now()
