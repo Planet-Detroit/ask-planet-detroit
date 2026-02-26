@@ -1407,16 +1407,26 @@ async def get_air_quality(
         raise HTTPException(status_code=500, detail="AirNow API key not configured")
 
     import httpx
-    url = (
-        f"https://www.airnowapi.org/aq/observation/latLong/current/"
-        f"?format=application/json&latitude={lat}&longitude={lon}"
-        f"&distance=50&API_KEY={api_key}"
-    )
-    try:
+    # Detroit fallback coords — used if user's location has no nearby stations
+    DETROIT_LAT, DETROIT_LON = 42.3314, -83.0458
+
+    async def fetch_aqi(check_lat, check_lon):
+        url = (
+            f"https://www.airnowapi.org/aq/observation/latLong/current/"
+            f"?format=application/json&latitude={check_lat}&longitude={check_lon}"
+            f"&distance=75&API_KEY={api_key}"
+        )
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.get(url)
             resp.raise_for_status()
             return resp.json()
+
+    try:
+        data = await fetch_aqi(lat, lon)
+        # If no stations near user's location, fall back to Detroit
+        if not data and (lat != DETROIT_LAT or lon != DETROIT_LON):
+            data = await fetch_aqi(DETROIT_LAT, DETROIT_LON)
+        return data
     except httpx.TimeoutException:
         raise HTTPException(status_code=504, detail="AirNow API timed out")
     except Exception as e:
