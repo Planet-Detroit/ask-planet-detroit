@@ -1388,6 +1388,42 @@ async def submit_civic_response(request: Request, body: CivicResponseRequest):
         raise HTTPException(status_code=500, detail="Failed to save response")
 
 # =============================================================================
+# Air quality proxy — avoids CORS issues and hides API key from browser
+# =============================================================================
+
+@app.get("/api/air-quality")
+@limiter.limit("30/minute")
+async def get_air_quality(
+    request: Request,
+    lat: float = Query(default=42.3314, description="Latitude"),
+    lon: float = Query(default=-83.0458, description="Longitude"),
+):
+    """
+    Proxy for AirNow API. Called from the weather bar on planetdetroit.org.
+    Keeps the API key server-side and avoids browser CORS restrictions.
+    """
+    api_key = os.getenv("AIRNOW_API_KEY", "")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="AirNow API key not configured")
+
+    import httpx
+    url = (
+        f"https://www.airnowapi.org/aq/observation/latLong/current/"
+        f"?format=application/json&latitude={lat}&longitude={lon}"
+        f"&distance=50&API_KEY={api_key}"
+    )
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.get(url)
+            resp.raise_for_status()
+            return resp.json()
+    except httpx.TimeoutException:
+        raise HTTPException(status_code=504, detail="AirNow API timed out")
+    except Exception as e:
+        print(f"AirNow proxy error: {e}")
+        raise HTTPException(status_code=502, detail="Failed to fetch air quality data")
+
+# =============================================================================
 # Run server
 # =============================================================================
 
