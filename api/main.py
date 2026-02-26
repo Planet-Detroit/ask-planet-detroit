@@ -1240,11 +1240,11 @@ Rules:
 
 3. SUMMARY: One paragraph summary of what the article is about (2-3 sentences)
 
-4. WHY_IT_MATTERS: 1-2 paragraphs explaining why this story matters to Metro Detroit residents. Focus on direct impacts to people's health, wallets, or community. Write in an accessible, journalistic tone.
+4. WHY_IT_MATTERS: ONE sentence explaining why this story matters to Metro Detroit residents. Focus on the single most direct impact to people's health, wallets, or community. Keep it concise — one sentence only.
 
-5. WHOS_DECIDING: 1-2 paragraphs identifying who is making the key public decisions related to this article — which agencies, boards, commissions, or elected officials have authority. Include any upcoming decision points or timelines if mentioned.
+5. WHOS_DECIDING: ONE sentence identifying who is making the key public decisions — name the specific agency, board, or official with authority. One sentence only.
 
-6. WHAT_TO_WATCH: 1-2 sentences about what readers should watch for next — upcoming votes, rulings, deadlines, or developments.
+6. WHAT_TO_WATCH: ONE sentence about what readers should watch for next — the single most important upcoming vote, ruling, or deadline.
 
 <article_text>
 {article_text}
