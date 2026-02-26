@@ -1416,7 +1416,7 @@ async def get_air_quality(
             f"?format=application/json&latitude={check_lat}&longitude={check_lon}"
             f"&distance=75&API_KEY={api_key}"
         )
-        async with httpx.AsyncClient(timeout=10) as client:
+        async with httpx.AsyncClient(timeout=20) as client:
             resp = await client.get(url)
             resp.raise_for_status()
             return resp.json()
