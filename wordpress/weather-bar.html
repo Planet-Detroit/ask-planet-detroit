@@ -1,0 +1,171 @@
+<!--
+  Planet Detroit Weather & AQI Bar
+  ================================
+  This code lives in the WordPress site header (Appearance → Customize → Header Scripts,
+  or via a plugin like "Insert Headers and Footers").
+
+  It shows current temperature (via Open-Meteo) and air quality (via AirNow, proxied
+  through the Ask Planet Detroit API to avoid CORS issues and keep the API key hidden).
+
+  If the reader allows geolocation, it shows their local weather.
+  Otherwise, it defaults to Detroit, MI.
+
+  If no AirNow stations are near the reader's location, the API automatically
+  falls back to Detroit-area stations.
+
+  Last updated: 2026-02-25
+-->
+
+<div id="detroit-weather">Loading...</div>
+<style>
+#detroit-weather {
+  width: 100%;
+  background-color: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 8px 16px;
+  text-align: center;
+  font-size: 14px;
+  font-family: Arial, sans-serif;
+}
+.weather-info {
+  display: inline-block;
+  margin: 4px 12px;
+  color: #1f2937;
+  white-space: nowrap;
+}
+.location-name {
+  font-weight: 600;
+  margin-right: 16px;
+}
+.aqi-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  color: white;
+  font-size: 12px;
+  margin-left: 8px;
+  white-space: nowrap;
+}
+@media (max-width: 768px) {
+  #detroit-weather {
+    font-size: 12px;
+    padding: 6px 8px;
+  }
+  .weather-info {
+    margin: 2px 6px;
+    font-size: 12px;
+  }
+  .location-name {
+    margin-right: 8px;
+  }
+  .aqi-badge {
+    font-size: 11px;
+    padding: 1px 6px;
+    margin-left: 4px;
+  }
+}
+@media (max-width: 480px) {
+  #detroit-weather {
+    font-size: 11px;
+    padding: 6px 4px;
+  }
+  .weather-info {
+    margin: 2px 4px;
+    display: block;
+  }
+  .location-name {
+    display: block;
+    margin-bottom: 4px;
+  }
+}
+</style>
+<script>
+(function() {
+  var userLat = 42.3314;
+  var userLon = -83.0458;
+  var userLocation = 'Detroit, MI';
+
+  function displayWeather(temp, high, low, aqi, location) {
+    var html = '<span class="weather-info location-name">' + location + '</span>' +
+               '<span class="weather-info">' + temp + '°F</span>' +
+               '<span class="weather-info">H ' + high + '° L ' + low + '°</span>';
+
+    if (aqi && aqi > 0) {
+      var color = aqi <= 50 ? '#10b981' : aqi <= 100 ? '#fbbf24' : aqi <= 150 ? '#f97316' : aqi <= 200 ? '#ef4444' : '#991b1b';
+      var label = aqi <= 50 ? 'Good' : aqi <= 100 ? 'Moderate' : aqi <= 150 ? 'Unhealthy for Sensitive' : aqi <= 200 ? 'Unhealthy' : 'Very Unhealthy';
+      html += '<span class="weather-info">AQI ' + aqi + '<span class="aqi-badge" style="background-color:' + color + '">' + label + '</span></span>';
+    }
+
+    document.getElementById('detroit-weather').innerHTML = html;
+  }
+
+  function loadWeather(lat, lon, location) {
+    var weatherUrl = 'https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lon + '&current=temperature_2m&daily=temperature_2m_max,temperature_2m_min&temperature_unit=fahrenheit&timezone=auto';
+
+    fetch(weatherUrl)
+      .then(function(r) { return r.json(); })
+      .then(function(w) {
+        var temp = Math.round(w.current.temperature_2m);
+        var high = Math.round(w.daily.temperature_2m_max[0]);
+        var low = Math.round(w.daily.temperature_2m_min[0]);
+
+        var aqiUrl = 'https://ask-planet-detroit-production.up.railway.app/api/air-quality?lat=' + lat + '&lon=' + lon;
+
+        fetch(aqiUrl)
+          .then(function(r) { return r.json(); })
+          .then(function(aqiData) {
+            var aqi = 0;
+            if (aqiData && aqiData.length > 0) {
+              for (var i = 0; i < aqiData.length; i++) {
+                if (aqiData[i].AQI && aqiData[i].AQI > aqi) {
+                  aqi = aqiData[i].AQI;
+                }
+              }
+            }
+            displayWeather(temp, high, low, aqi, location);
+          })
+          .catch(function() {
+            displayWeather(temp, high, low, null, location);
+          });
+      })
+      .catch(function() {
+        document.getElementById('detroit-weather').innerHTML = 'Unable to load weather';
+      });
+  }
+
+  function getCityName(lat, lon) {
+    var geocodeUrl = 'https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=' + lat + '&longitude=' + lon + '&localityLanguage=en';
+    fetch(geocodeUrl)
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        var city = data.city || data.locality || 'Your Location';
+        var state = data.principalSubdivisionCode ? data.principalSubdivisionCode.replace('US-', '') : '';
+        userLocation = city + (state ? ', ' + state : '');
+        loadWeather(userLat, userLon, userLocation);
+      })
+      .catch(function() {
+        loadWeather(userLat, userLon, 'Your Location');
+      });
+  }
+
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      function(position) {
+        userLat = position.coords.latitude;
+        userLon = position.coords.longitude;
+        getCityName(userLat, userLon);
+      },
+      function() {
+        loadWeather(userLat, userLon, userLocation);
+      },
+      { timeout: 5000 }
+    );
+  } else {
+    loadWeather(userLat, userLon, userLocation);
+  }
+
+  setInterval(function() {
+    loadWeather(userLat, userLon, userLocation);
+  }, 600000);
+})();
+</script>

@@ -1,6 +1,6 @@
 # Ask Planet Detroit — Maintenance Guide
 
-**Last Updated:** February 19, 2026
+**Last Updated:** February 25, 2026
 
 ---
 
@@ -14,6 +14,8 @@ Ask Planet Detroit is the backend API that powers Planet Detroit's civic engagem
 - **Organization directory** of 605+ Michigan environmental organizations
 - **Elected officials** lookup by address
 - **Article analysis** — Claude reads an article and identifies civic actions, related meetings, and relevant organizations
+- **Air quality proxy** — proxies AirNow API requests for the weather bar on planetdetroit.org (avoids CORS issues, hides API key)
+- **Civic responses** — records reader responses from civic action box forms embedded in articles
 
 **Deployment:** Railway (https://ask-planet-detroit-production.up.railway.app/)
 **Database:** Supabase (PostgreSQL + pgvector for embeddings)
@@ -55,6 +57,7 @@ cd api && uvicorn main:app --reload --port 8000
 | `OPENAI_API_KEY` | OpenAI API key | Used for text embeddings (search) |
 | `ANTHROPIC_API_KEY` | Anthropic API key | Used for Claude answer synthesis and article analysis |
 | `API_KEYS` | Comma-separated list of valid API keys | You generate these (see "API Authentication" below) |
+| `AIRNOW_API_KEY` | AirNow API key for air quality data | https://docs.airnowapi.org/ (free registration) |
 
 ---
 
@@ -121,9 +124,9 @@ Four scrapers run daily at 6 AM EST via GitHub Actions:
 
 ## Tests
 
-74 automated tests in two files:
+86 automated tests in two files:
 
-- `api/tests/test_api.py` — 40 tests covering all API endpoints, input validation, CORS, and auth
+- `api/tests/test_api.py` — 52 tests covering all API endpoints, input validation, CORS, and auth
 - `scrapers/tests/test_scrapers.py` — 34 tests covering scraper parsing logic
 
 ```bash
@@ -177,3 +180,27 @@ Railway auto-deploys from the `main` branch. If you pushed but don't see changes
 | **OpenAI** | Text embeddings for search | Pay-per-use |
 | **Anthropic** | Claude for answer synthesis + article analysis | Pay-per-use |
 | **GitHub Actions** | Scraper scheduling + CI | Free for public repos |
+| **AirNow API** | Air quality data for weather bar | Free (requires registration) |
+| **Open-Meteo** | Weather data (called directly from browser) | Free, no key required |
+
+---
+
+## WordPress Weather & AQI Bar
+
+The weather bar at the top of planetdetroit.org shows current temperature and air quality. The code lives in the WordPress site header and is also saved in this repo at `wordpress/weather-bar.html` for reference.
+
+### How it works
+1. Browser gets temperature from **Open-Meteo** (free, no API key, no CORS issues)
+2. Browser gets AQI from **Ask Planet Detroit API** (`/api/air-quality`) which proxies AirNow server-side
+3. If the reader allows geolocation, shows their local data; otherwise defaults to Detroit
+4. If no AirNow stations are near the reader, the API falls back to Detroit-area stations
+5. Refreshes every 10 minutes
+
+### If AQI stops showing
+- Check Railway logs for errors on `/api/air-quality`
+- Verify `AIRNOW_API_KEY` is set in Railway environment variables
+- Test the endpoint: `curl https://ask-planet-detroit-production.up.railway.app/api/air-quality`
+- AirNow occasionally has outages — temperature will still show without AQI
+
+### If you need to update the header script
+The canonical version is saved at `wordpress/weather-bar.html` in this repo. If you need to restore it, copy the contents into your WordPress header scripts
