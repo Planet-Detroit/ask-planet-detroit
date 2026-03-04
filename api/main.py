@@ -56,6 +56,7 @@ ALLOWED_ORIGINS = [
     "https://newsletter.tools.planetdetroit.org",
     "https://planetdetroit.org",
     "https://www.planetdetroit.org",
+    "https://deepdives.planetdetroit.org",
     "http://localhost:5173",   # Vite dev
     "http://localhost:5174",   # Vite dev (alt port)
     "http://localhost:3000",   # Next.js dev
