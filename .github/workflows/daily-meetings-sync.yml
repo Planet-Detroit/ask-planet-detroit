@@ -18,6 +18,8 @@ on:
           - mpsc
           - glwa
           - detroit
+          - egle
+          - legistar_agenda
 
 jobs:
   scrape-meetings:
@@ -44,21 +46,23 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           cd scrapers
-          
+
           SCRAPER="${{ github.event.inputs.scraper || 'all' }}"
-          
+
           if [ "$SCRAPER" = "all" ]; then
             python run_scrapers.py 2>&1 | tee scrape_output.txt
           else
             python run_scrapers.py $SCRAPER 2>&1 | tee scrape_output.txt
           fi
-          
+
           # Extract counts from output
           MPSC_COUNT=$(grep -oP 'MPSC: \K\d+' scrape_output.txt || echo "0")
           GLWA_COUNT=$(grep -oP 'GLWA: \K\d+' scrape_output.txt || echo "0")
           DETROIT_COUNT=$(grep -oP 'DETROIT: \K\d+' scrape_output.txt || echo "0")
+          LEGISTAR_COUNT=$(grep -oP 'LEGISTAR_AGENDA: \K\d+' scrape_output.txt || echo "0")
           TOTAL=$(grep -oP 'TOTAL: \K\d+' scrape_output.txt || echo "0")
           
           # Check for errors
@@ -78,6 +82,7 @@ jobs:
           echo "mpsc_count=$MPSC_COUNT" >> $GITHUB_OUTPUT
           echo "glwa_count=$GLWA_COUNT" >> $GITHUB_OUTPUT
           echo "detroit_count=$DETROIT_COUNT" >> $GITHUB_OUTPUT
+          echo "legistar_count=$LEGISTAR_COUNT" >> $GITHUB_OUTPUT
           echo "total_count=$TOTAL" >> $GITHUB_OUTPUT
       
       - name: Create summary
@@ -92,6 +97,7 @@ jobs:
           echo "| MPSC | ${{ steps.scrape.outputs.mpsc_count }} |" >> $GITHUB_STEP_SUMMARY
           echo "| GLWA | ${{ steps.scrape.outputs.glwa_count }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Detroit | ${{ steps.scrape.outputs.detroit_count }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Legistar Agendas | ${{ steps.scrape.outputs.legistar_count }} |" >> $GITHUB_STEP_SUMMARY
           echo "| **Total** | **${{ steps.scrape.outputs.total_count }}** |" >> $GITHUB_STEP_SUMMARY
           
           if [ "${{ steps.scrape.outputs.has_warnings }}" = "true" ]; then
@@ -144,7 +150,11 @@ jobs:
                     },
                     {
                       \"type\": \"mrkdwn\",
-                      \"text\": \"*Total:*\n${{ steps.scrape.outputs.total_count }} meetings\"
+                      \"text\": \"*Agendas:*\n${{ steps.scrape.outputs.legistar_count }} summaries\"
+                    },
+                    {
+                      \"type\": \"mrkdwn\",
+                      \"text\": \"*Total:*\n${{ steps.scrape.outputs.total_count }} items\"
                     }
                   ]
                 },

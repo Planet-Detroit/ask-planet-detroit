@@ -537,3 +537,43 @@ class TestAnalyzeArticleNewFields:
         assert "why_it_matters" in data
         assert "whos_deciding" in data
         assert "what_to_watch" in data
+
+
+# =========================================================================
+# Agenda Summaries endpoints
+# =========================================================================
+
+class TestAgendaSummariesEndpoints:
+    """Test the agenda summaries list, detail, and meeting-linked endpoints."""
+
+    def test_agenda_summaries_returns_200(self):
+        response = client.get("/api/agenda-summaries")
+        assert response.status_code == 200
+
+    def test_agenda_summaries_response_shape(self):
+        data = client.get("/api/agenda-summaries").json()
+        assert "agenda_summaries" in data
+        assert "count" in data
+        assert isinstance(data["agenda_summaries"], list)
+
+    def test_agenda_summaries_with_upcoming_filter(self):
+        response = client.get("/api/agenda-summaries?upcoming_only=true")
+        assert response.status_code == 200
+
+    def test_agenda_summaries_with_pagination(self):
+        response = client.get("/api/agenda-summaries?limit=5&offset=0")
+        assert response.status_code == 200
+
+    def test_agenda_summary_detail_not_found(self):
+        response = client.get("/api/agenda-summaries/00000000-0000-0000-0000-000000000000")
+        assert response.status_code in [200, 404]
+
+    def test_meeting_agenda_summary_not_found(self):
+        response = client.get("/api/meetings/00000000-0000-0000-0000-000000000000/agenda-summary")
+        assert response.status_code == 404
+
+    def test_agenda_summaries_does_not_require_auth(self):
+        """Agenda summaries are public data — should work without API key."""
+        with patch.dict(os.environ, {"API_KEYS": "test-key-123"}):
+            response = client.get("/api/agenda-summaries")
+            assert response.status_code == 200

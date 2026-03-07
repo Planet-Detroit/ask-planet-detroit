@@ -57,6 +57,7 @@ ALLOWED_ORIGINS = [
     "https://planetdetroit.org",
     "https://www.planetdetroit.org",
     "https://deepdives.planetdetroit.org",
+    "https://planet-detroit.github.io",  # GitHub Pages
     "http://localhost:5173",   # Vite dev
     "http://localhost:5174",   # Vite dev (alt port)
     "http://localhost:3000",   # Next.js dev
@@ -69,6 +70,13 @@ app.add_middleware(
     allow_methods=["GET", "POST"],
     allow_headers=["Content-Type", "Authorization"],
 )
+
+# Static files — serves standalone HTML pages (e.g., agenda summaries viewer)
+from pathlib import Path
+_static_dir = Path(__file__).parent / "static"
+if _static_dir.is_dir():
+    from fastapi.staticfiles import StaticFiles
+    app.mount("/static", StaticFiles(directory=str(_static_dir), html=True), name="static")
 
 # =============================================================================
 # API key authentication — protects expensive AI endpoints
@@ -1014,6 +1022,78 @@ async def get_meeting(meeting_id: str):
         return response.data
     except Exception as e:
         raise HTTPException(status_code=404, detail="Meeting not found")
+
+# =============================================================================
+# Agenda Summaries Endpoints
+# =============================================================================
+
+@app.get("/api/agenda-summaries")
+async def list_agenda_summaries(
+    agency: str = Query("detroit", description="Agency filter (currently only detroit)"),
+    upcoming_only: bool = Query(True, description="Only show upcoming meetings"),
+    limit: int = Query(10, le=50),
+    offset: int = Query(0)
+):
+    """List AI-generated agenda summaries for Detroit meetings."""
+    try:
+        query = supabase.from_("agenda_summaries")\
+            .select("*")\
+            .order("meeting_date", desc=False)
+
+        if upcoming_only:
+            today = datetime.now(ZoneInfo("America/Detroit")).date().isoformat()
+            query = query.gte("meeting_date", today)
+
+        query = query.range(offset, offset + limit - 1)
+
+        response = query.execute()
+        summaries = response.data or []
+
+        return {"agenda_summaries": summaries, "count": len(summaries)}
+
+    except Exception as e:
+        print(f"Agenda summaries error: {e}")
+        return {"agenda_summaries": [], "count": 0}
+
+
+@app.get("/api/agenda-summaries/{summary_id}")
+async def get_agenda_summary(summary_id: str):
+    """Get a single agenda summary by ID, including raw agenda items."""
+    try:
+        response = supabase.from_("agenda_summaries")\
+            .select("*")\
+            .eq("id", summary_id)\
+            .single()\
+            .execute()
+
+        return response.data
+    except Exception as e:
+        raise HTTPException(status_code=404, detail="Agenda summary not found")
+
+
+@app.get("/api/meetings/{meeting_id}/agenda-summary")
+async def get_meeting_agenda_summary(meeting_id: str):
+    """Get the agenda summary linked to a specific meeting, if available."""
+    try:
+        response = supabase.from_("agenda_summaries")\
+            .select("*")\
+            .eq("meeting_id", meeting_id)\
+            .execute()
+
+        summaries = response.data or []
+        if not summaries:
+            raise HTTPException(
+                status_code=404,
+                detail="No agenda summary available for this meeting"
+            )
+
+        return summaries[0]
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Meeting agenda summary error: {e}")
+        raise HTTPException(status_code=404, detail="No agenda summary available for this meeting")
+
 
 # =============================================================================
 # Comment Periods Endpoints

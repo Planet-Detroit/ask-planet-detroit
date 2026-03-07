@@ -37,6 +37,7 @@ from egle_scraper import (
     extract_zoom_url,
     determine_comment_type,
 )
+from escribe_agenda_scraper import filter_substantive_items
 from mpsc_scraper import parse_time_from_description as mpsc_parse_time
 
 
@@ -249,3 +250,80 @@ class TestSourceIdDeterminism:
         title = "Detroit City Council Formal Session"
         expected = hashlib.md5(title.encode()).hexdigest()[:12]
         assert expected == "63450a4ba739"  # Known stable value
+
+
+# =========================================================================
+# Legistar Agenda: Substantive item filtering
+# =========================================================================
+
+class TestLegistarFilterSubstantiveItems:
+    """Test that procedural items are correctly filtered out."""
+
+    def test_removes_roll_call(self):
+        items = [
+            {"EventItemTitle": "Roll Call"},
+            {"EventItemTitle": "Resolution on Housing Policy"},
+        ]
+        result = filter_substantive_items(items)
+        assert len(result) == 1
+        assert result[0]["EventItemTitle"] == "Resolution on Housing Policy"
+
+    def test_removes_adjournment(self):
+        items = [
+            {"EventItemTitle": "Motion for Adjournment"},
+            {"EventItemTitle": "Budget Amendment for Parks"},
+        ]
+        result = filter_substantive_items(items)
+        assert len(result) == 1
+        assert result[0]["EventItemTitle"] == "Budget Amendment for Parks"
+
+    def test_removes_pledge_of_allegiance(self):
+        items = [
+            {"EventItemTitle": "Pledge of Allegiance"},
+            {"EventItemTitle": "Hearing on Water Infrastructure"},
+        ]
+        result = filter_substantive_items(items)
+        assert len(result) == 1
+
+    def test_keeps_substantive_items(self):
+        items = [
+            {"EventItemTitle": "Resolution to Approve Zoning Change for 123 Main St"},
+            {"EventItemTitle": "Ordinance Amending Chapter 50 - Housing Code"},
+            {"EventItemTitle": "Public Hearing on FY2026 Budget"},
+        ]
+        result = filter_substantive_items(items)
+        assert len(result) == 3
+
+    def test_skips_empty_titles(self):
+        items = [
+            {"EventItemTitle": ""},
+            {"EventItemTitle": None},
+            {"EventItemTitle": "Valid Item"},
+        ]
+        result = filter_substantive_items(items)
+        assert len(result) == 1
+        assert result[0]["EventItemTitle"] == "Valid Item"
+
+    def test_case_insensitive_filtering(self):
+        # Procedural keywords should be matched case-insensitively
+        items = [
+            {"EventItemTitle": "ROLL CALL"},
+            {"EventItemTitle": "Approval Of Minutes"},
+            {"EventItemTitle": "Moment of Silence"},
+            {"EventItemTitle": "Tax Increment Financing District"},
+        ]
+        result = filter_substantive_items(items)
+        assert len(result) == 1
+        assert result[0]["EventItemTitle"] == "Tax Increment Financing District"
+
+    def test_empty_list_returns_empty(self):
+        assert filter_substantive_items([]) == []
+
+    def test_all_procedural_returns_empty(self):
+        items = [
+            {"EventItemTitle": "Roll Call"},
+            {"EventItemTitle": "Adjournment"},
+            {"EventItemTitle": "Pledge of Allegiance"},
+        ]
+        result = filter_substantive_items(items)
+        assert len(result) == 0

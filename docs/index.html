@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Detroit Meeting Agendas - Planet Detroit</title>
+  <style>
+    :root {
+      --pd-green: #2d6a4f;
+      --pd-green-light: #40916c;
+      --pd-bg: #f8f9fa;
+      --pd-card: #ffffff;
+      --pd-text: #212529;
+      --pd-text-light: #6c757d;
+      --pd-border: #dee2e6;
+      --pd-tag-bg: #e9ecef;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--pd-bg);
+      color: var(--pd-text);
+      line-height: 1.6;
+    }
+
+    header {
+      background: var(--pd-green);
+      color: white;
+      padding: 1.5rem;
+      text-align: center;
+    }
+
+    header h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 0.25rem;
+    }
+
+    header p {
+      font-size: 0.9rem;
+      opacity: 0.85;
+    }
+
+    .container {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 1.5rem 1rem;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 3rem;
+      color: var(--pd-text-light);
+    }
+
+    .loading::after {
+      content: '';
+      display: block;
+      width: 2rem;
+      height: 2rem;
+      margin: 1rem auto 0;
+      border: 3px solid var(--pd-border);
+      border-top-color: var(--pd-green);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .empty {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: var(--pd-text-light);
+    }
+
+    .empty h2 {
+      font-size: 1.2rem;
+      margin-bottom: 0.5rem;
+      color: var(--pd-text);
+    }
+
+    .card {
+      background: var(--pd-card);
+      border: 1px solid var(--pd-border);
+      border-radius: 8px;
+      margin-bottom: 1rem;
+      overflow: hidden;
+    }
+
+    .card-header {
+      padding: 1rem 1.25rem;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 1rem;
+    }
+
+    .card-header:hover {
+      background: #f8f9fa;
+    }
+
+    .card-title {
+      font-size: 1.05rem;
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+    }
+
+    .card-date {
+      font-size: 0.85rem;
+      color: var(--pd-text-light);
+    }
+
+    .card-summary {
+      padding: 0 1.25rem 1rem;
+      font-size: 0.95rem;
+      line-height: 1.7;
+    }
+
+    .card-topics {
+      padding: 0 1.25rem 1rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+    }
+
+    .topic-tag {
+      background: var(--pd-tag-bg);
+      color: var(--pd-text);
+      font-size: 0.75rem;
+      padding: 0.2rem 0.6rem;
+      border-radius: 100px;
+      font-weight: 500;
+    }
+
+    .card-detail {
+      display: none;
+      border-top: 1px solid var(--pd-border);
+      padding: 1rem 1.25rem;
+      background: #fafafa;
+    }
+
+    .card-detail.open { display: block; }
+
+    .card-detail h3 {
+      font-size: 0.9rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      color: var(--pd-text-light);
+    }
+
+    .agenda-item {
+      font-size: 0.85rem;
+      padding: 0.4rem 0;
+      border-bottom: 1px solid #eee;
+    }
+
+    .agenda-item:last-child { border-bottom: none; }
+
+    .agenda-item .matter-type {
+      display: inline-block;
+      background: var(--pd-tag-bg);
+      font-size: 0.7rem;
+      padding: 0.1rem 0.4rem;
+      border-radius: 3px;
+      margin-left: 0.3rem;
+    }
+
+    .toggle-icon {
+      flex-shrink: 0;
+      font-size: 1.2rem;
+      color: var(--pd-text-light);
+      transition: transform 0.2s;
+    }
+
+    .toggle-icon.open { transform: rotate(180deg); }
+
+    .item-count {
+      font-size: 0.8rem;
+      color: var(--pd-text-light);
+      margin-top: 0.25rem;
+    }
+
+    footer {
+      text-align: center;
+      padding: 2rem 1rem;
+      font-size: 0.8rem;
+      color: var(--pd-text-light);
+    }
+
+    footer a { color: var(--pd-green); }
+
+    .error {
+      text-align: center;
+      padding: 2rem;
+      color: #dc3545;
+    }
+
+    .card-meta {
+      padding: 0 1.25rem 1rem;
+      font-size: 0.85rem;
+      color: var(--pd-text-light);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      align-items: center;
+    }
+
+    .card-meta a {
+      color: var(--pd-green);
+      text-decoration: none;
+      font-weight: 500;
+    }
+
+    .card-meta a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Detroit Meeting Agendas</h1>
+    <p>AI-powered summaries of upcoming City Council agendas</p>
+  </header>
+
+  <div class="container" id="app">
+    <div class="loading" id="loading">Loading agenda summaries...</div>
+  </div>
+
+  <footer>
+    Powered by <a href="https://planetdetroit.org">Planet Detroit</a>
+    &middot; Data from City of Detroit
+  </footer>
+
+  <script>
+    // Use Railway API when hosted on GitHub Pages, otherwise use current origin
+    const API_BASE = window.location.hostname.includes('github.io')
+      ? 'https://ask-planet-detroit-production.up.railway.app'
+      : window.location.origin;
+
+    async function loadSummaries() {
+      const loading = document.getElementById('loading');
+      const app = document.getElementById('app');
+
+      try {
+        const resp = await fetch(`${API_BASE}/api/agenda-summaries?upcoming_only=true&limit=20`);
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const data = await resp.json();
+
+        loading.remove();
+
+        const summaries = data.agenda_summaries || [];
+
+        if (summaries.length === 0) {
+          app.innerHTML = `
+            <div class="empty">
+              <h2>No upcoming agenda summaries</h2>
+              <p>Agenda summaries are generated daily from the City of Detroit's meeting system.
+                 Check back when new meeting agendas are published.</p>
+            </div>`;
+          return;
+        }
+
+        // Fetch linked meeting details for each summary (for time/location/links)
+        const meetingDetails = {};
+        await Promise.all(summaries.map(async s => {
+          if (!s.meeting_id) return;
+          try {
+            const mResp = await fetch(`${API_BASE}/api/meetings/${s.meeting_id}`);
+            if (mResp.ok) meetingDetails[s.meeting_id] = await mResp.json();
+          } catch (e) { /* ignore — we'll just skip meeting info */ }
+        }));
+
+        summaries.forEach(s => {
+          const card = document.createElement('div');
+          card.className = 'card';
+
+          const date = new Date(s.meeting_date + 'T12:00:00');
+          const dateStr = date.toLocaleDateString('en-US', {
+            weekday: 'long', month: 'long', day: 'numeric', year: 'numeric'
+          });
+
+          const topics = (s.key_topics || [])
+            .map(t => `<span class="topic-tag">${t.replace(/_/g, ' ')}</span>`)
+            .join('');
+
+          // Build meeting info line (time, location, links)
+          const meeting = s.meeting_id ? meetingDetails[s.meeting_id] : null;
+          let metaParts = [];
+          if (meeting && meeting.meeting_time) {
+            const [h, m] = meeting.meeting_time.split(':');
+            const hour = parseInt(h);
+            const ampm = hour >= 12 ? 'PM' : 'AM';
+            const h12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+            metaParts.push(`${h12}:${m} ${ampm}`);
+          }
+          if (meeting && meeting.location_name) {
+            metaParts.push(meeting.location_name);
+          }
+
+          let metaLinks = [];
+          // eSCRIBE agenda page link
+          const agendaUrl = `https://pub-detroitmi.escribemeetings.com/Meeting.aspx?Id=${s.escribemeetings_guid}&Agenda=Agenda&lang=English`;
+          metaLinks.push(`<a href="${agendaUrl}" target="_blank" rel="noopener">View full agenda</a>`);
+          if (meeting && meeting.virtual_url) {
+            metaLinks.push(`<a href="${meeting.virtual_url}" target="_blank" rel="noopener">Join via Zoom</a>`);
+          }
+
+          const metaHtml = (metaParts.length || metaLinks.length)
+            ? `<div class="card-meta">${metaParts.join(' &middot; ')}${metaParts.length && metaLinks.length ? ' &middot; ' : ''}${metaLinks.join(' &middot; ')}</div>`
+            : '';
+
+          // Parse agenda items from JSON
+          let agendaItems = [];
+          try {
+            agendaItems = typeof s.agenda_items === 'string'
+              ? JSON.parse(s.agenda_items)
+              : (s.agenda_items || []);
+          } catch (e) {
+            agendaItems = [];
+          }
+
+          const itemsHtml = agendaItems.map(item => {
+            const title = item.title || item.EventItemTitle || '';
+            return `<div class="agenda-item">${title}</div>`;
+          }).join('');
+
+          card.innerHTML = `
+            <div class="card-header" onclick="toggleDetail(this)">
+              <div>
+                <div class="card-title">${s.meeting_body}</div>
+                <div class="card-date">${dateStr}</div>
+                <div class="item-count">${s.item_count} agenda items</div>
+              </div>
+              <span class="toggle-icon">&#9660;</span>
+            </div>
+            <div class="card-summary">${s.summary}</div>
+            ${metaHtml}
+            ${topics ? `<div class="card-topics">${topics}</div>` : ''}
+            <div class="card-detail">
+              <h3>Full Agenda Items</h3>
+              ${itemsHtml || '<p>No items available</p>'}
+            </div>`;
+
+          app.appendChild(card);
+        });
+
+      } catch (err) {
+        loading.remove();
+        app.innerHTML = `<div class="error">Failed to load summaries. Please try again later.</div>`;
+        console.error('Error loading summaries:', err);
+      }
+    }
+
+    function toggleDetail(header) {
+      const detail = header.parentElement.querySelector('.card-detail');
+      const icon = header.querySelector('.toggle-icon');
+      detail.classList.toggle('open');
+      icon.classList.toggle('open');
+    }
+
+    loadSummaries();
+  </script>
+</body>
+</html>
