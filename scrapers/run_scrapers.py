@@ -26,6 +26,7 @@ from glwa_scraper import main as scrape_glwa
 from detroit_scraper import main as scrape_detroit
 from egle_scraper import main as scrape_egle
 from escribe_agenda_scraper import main as scrape_legistar_agenda
+from agenda_summarizer import summarize_meetings
 
 
 def ensure_unique_constraint():
@@ -94,6 +95,7 @@ async def run_all_scrapers():
         "detroit": [],
         "egle": [],
         "legistar_agenda": [],
+        "agenda_summaries": [],
     }
     errors = []
 
@@ -137,6 +139,25 @@ async def run_all_scrapers():
         print(f"ERROR running Legistar agenda scraper: {e}")
         errors.append(f"Legistar Agenda: {e}")
 
+    # Run agenda summarization for GLWA, EGLE, and MPSC
+    # (Detroit uses its own eSCRIBE-specific summarizer above)
+    print("\n" + "=" * 70)
+    print("AGENDA SUMMARIZATION (GLWA, EGLE, MPSC)")
+    print("=" * 70)
+    all_summaries = []
+    for source_label, source_key, meetings in [
+        ("glwa_agenda", "glwa", results["glwa"]),
+        ("egle_agenda", "egle", results["egle"]),
+        ("mpsc_agenda", "mpsc", results["mpsc"]),
+    ]:
+        try:
+            summaries = summarize_meetings(source_label, meetings or [])
+            all_summaries.extend(summaries)
+        except Exception as e:
+            print(f"  ERROR summarizing {source_label}: {e}")
+            errors.append(f"Agenda summary ({source_label}): {e}")
+    results["agenda_summaries"] = all_summaries
+
     # Summary
     print("\n" + "=" * 70)
     print("SUMMARY")
@@ -144,14 +165,15 @@ async def run_all_scrapers():
 
     total = 0
     warnings = []
+    summary_sources = {"legistar_agenda", "agenda_summaries"}
     for source, items in results.items():
         count = len(items) if items else 0
         total += count
         status_icon = "OK" if count > 0 else "WARN"
-        label = "agenda summaries" if source == "legistar_agenda" else "meetings"
+        label = "agenda summaries" if source in summary_sources else "meetings"
         print(f"  {source.upper()}: {count} {label} [{status_icon}]")
-        # Legistar agenda returning 0 is expected (data may not be current)
-        if count == 0 and source != "legistar_agenda" and source not in [e.split(":")[0].strip().lower() for e in errors]:
+        # Agenda-related sources returning 0 is expected
+        if count == 0 and source not in summary_sources and source not in [e.split(":")[0].strip().lower() for e in errors]:
             warnings.append(f"{source.upper()}: returned 0 meetings (site may have changed or scraper may be broken)")
 
     print(f"\n  TOTAL: {total} items")
@@ -189,6 +211,7 @@ async def run_single_scraper(scraper_name):
         "detroit": scrape_detroit,
         "egle": scrape_egle,
         "legistar_agenda": scrape_legistar_agenda,
+        "agenda_summaries": None,  # only runs as part of "all"
     }
 
     # Handle "all" option

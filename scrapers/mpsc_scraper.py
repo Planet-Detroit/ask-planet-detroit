@@ -120,6 +120,23 @@ async def scrape_meeting_detail(page, url):
         conf_match = re.search(r'Conference\s*ID[:\s]*(\d[\d\s]*\d#?)', content, re.IGNORECASE)
         conference_id = conf_match.group(1).strip() if conf_match else None
 
+        # Extract agenda URL — look for PDF links on the page
+        agenda_url = None
+        agenda_links = await page.query_selector_all('a[href$=".pdf"], a[href*="agenda" i]')
+        for link in agenda_links:
+            href = await link.get_attribute("href")
+            link_text = (await link.inner_text()).strip().lower()
+            if href and ("agenda" in link_text or "agenda" in href.lower()):
+                agenda_url = f"https://www.michigan.gov{href}" if not href.startswith("http") else href
+                break
+        # Fallback: any PDF link on the page that isn't a generic document
+        if not agenda_url:
+            for link in agenda_links:
+                href = await link.get_attribute("href")
+                if href and href.endswith(".pdf"):
+                    agenda_url = f"https://www.michigan.gov{href}" if not href.startswith("http") else href
+                    break
+
         # Determine if virtual/hybrid
         is_virtual = bool(teams_url) or "teleconference" in description.lower()
         is_hybrid = is_virtual and ("in-person" in description.lower() or "in person" in description.lower())
@@ -165,6 +182,7 @@ async def scrape_meeting_detail(page, url):
             "source_id": f"mpsc-{meeting_date.strftime('%Y-%m-%d')}",
             "status": "upcoming",
             "details_url": url,
+            "agenda_url": agenda_url,
         }
 
         return meeting
