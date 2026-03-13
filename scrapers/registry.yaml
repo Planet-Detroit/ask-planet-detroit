@@ -53,6 +53,30 @@ scrapers:
     depends_on:
       - detroit
 
+  washtenaw:
+    name: Washtenaw County
+    module: washtenaw_scraper
+    table: meetings
+    platform: civicclerk
+    needs_browser: false
+    enabled: true
+
+  oakland:
+    name: Oakland County
+    module: oakland_scraper
+    table: meetings
+    platform: civicclerk
+    needs_browser: false
+    enabled: true
+
+  macomb:
+    name: Macomb County
+    module: macomb_scraper
+    table: meetings
+    platform: civicclerk
+    needs_browser: false
+    enabled: true
+
   federal_register:
     name: Federal Register
     module: federal_register_scraper

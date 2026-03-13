@@ -20,6 +20,9 @@ on:
           - detroit
           - egle
           - detroit_agenda
+          - washtenaw
+          - oakland
+          - macomb
           - federal_register
 
 env:
@@ -96,14 +99,17 @@ jobs:
     runs-on: ubuntu-latest
     if: >-
       github.event.inputs.scraper == 'all' || github.event.inputs.scraper == ''
-      || contains(fromJSON('["egle","federal_register"]'), github.event.inputs.scraper)
+      || contains(fromJSON('["egle","federal_register","washtenaw","oakland","macomb"]'), github.event.inputs.scraper)
     strategy:
       fail-fast: false
       matrix:
-        scraper: [egle, federal_register]
+        scraper: [egle, federal_register, washtenaw, oakland, macomb]
         exclude:
           - scraper: ${{ github.event.inputs.scraper != 'all' && github.event.inputs.scraper != '' && github.event.inputs.scraper != 'egle' && 'egle' || 'NONE' }}
           - scraper: ${{ github.event.inputs.scraper != 'all' && github.event.inputs.scraper != '' && github.event.inputs.scraper != 'federal_register' && 'federal_register' || 'NONE' }}
+          - scraper: ${{ github.event.inputs.scraper != 'all' && github.event.inputs.scraper != '' && github.event.inputs.scraper != 'washtenaw' && 'washtenaw' || 'NONE' }}
+          - scraper: ${{ github.event.inputs.scraper != 'all' && github.event.inputs.scraper != '' && github.event.inputs.scraper != 'oakland' && 'oakland' || 'NONE' }}
+          - scraper: ${{ github.event.inputs.scraper != 'all' && github.event.inputs.scraper != '' && github.event.inputs.scraper != 'macomb' && 'macomb' || 'NONE' }}
 
     steps:
       - name: Checkout code
