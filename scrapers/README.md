@@ -1,19 +1,170 @@
-# Meeting Scrapers
+# Meeting & Comment Period Scrapers
 
-Automated scrapers for Michigan public meeting data.
+**Last Updated:** 2026-03-13
 
-## Scrapers Status
+Automated scrapers that collect public meeting data, comment period deadlines, and agenda summaries from government bodies at the local, state, and federal level. Data is stored in Supabase and served via the ask-planet-detroit API.
 
-| Agency | Full Name | Platform | Status |
-|--------|-----------|----------|--------|
-| **MPSC** | Michigan Public Service Commission | michigan.gov | ✅ Working |
-| **GLWA** | Great Lakes Water Authority | Legistar | ✅ Working |
-| **Detroit** | Detroit City Council | Legistar | ✅ Working |
-| **EGLE** | Dept. of Environment, Great Lakes, and Energy | MiEnviro Portal | 🔄 Pending |
+---
 
-## Setup
+## Scraper Registry
 
-### 1. Install Dependencies
+### Active Scrapers
+
+| Scraper | File | Agency | What It Collects | Method | Stores In |
+|---------|------|--------|-----------------|--------|-----------|
+| **Detroit** | `detroit_scraper.py` | Detroit City Council | Meetings (20-50), agendas | Playwright + eSCRIBE calendar API | `meetings` |
+| **GLWA** | `glwa_scraper.py` | Great Lakes Water Authority | Meetings (50-70), agendas | Playwright + Legistar RadGrid | `meetings` |
+| **EGLE** | `egle_scraper.py` | MI Dept. of Environment, Great Lakes, and Energy | Meetings + comment period deadlines | RSS/XML from Trumba (no browser) | `meetings` + `comment_periods` |
+| **MPSC** | `mpsc_scraper.py` | MI Public Service Commission | Meetings (1-2), agendas | Playwright + LD+JSON structured data | `meetings` |
+| **Detroit Agendas** | `escribe_agenda_scraper.py` | Detroit City Council | AI agenda summaries | Playwright + Claude Haiku | `agenda_summaries` |
+| **Multi-Source Agendas** | `agenda_summarizer.py` | GLWA, EGLE, MPSC | AI agenda summaries (PDF + HTML) | httpx + pdfplumber + Claude Haiku | `agenda_summaries` |
+| **Federal Register** | `federal_register_scraper.py` | EPA, FERC, NRC, Army Corps, FWS, Coast Guard | Federal comment periods (MI-relevant) | REST API (no auth) | `comment_periods` |
+
+### Non-Functional
+
+| Scraper | File | Notes |
+|---------|------|-------|
+| **MiEnviro** | `egle_mienviro_scraper.py` | EGLE public notice portal. JavaScript SPA that resists scraping. In debug mode. |
+
+---
+
+## How Each Scraper Works
+
+### Detroit (`detroit_scraper.py`)
+
+- **Source:** `pub-detroitmi.escribemeetings.com`
+- **Method:** Playwright loads the eSCRIBE platform, then calls the internal calendar API (`/MeetingsCalendarView.aspx/GetCalendarMeetings`) via JavaScript `page.evaluate`. Also generates fallback schedule entries for known regular meetings (Tuesday Formal Session, Wednesday committees, etc.).
+- **Agenda URLs:** Constructed from eSCRIBE GUIDs: `Meeting.aspx?Id={guid}&Agenda=Agenda&lang=English` (only for meetings where `HasAgenda=true`)
+- **Unique ID:** `hashlib.md5` of committee name + date for schedule-generated meetings; eSCRIBE GUID for API-sourced meetings
+- **Virtual Info:** All DCC meetings share Zoom ID `85846903626`
+- **Issue Tags:** `local_government` + per-committee tags
+- **Schedule:** Mon: Public Health & Safety 10AM. Tue: Formal Session 10AM. Wed: Internal Ops 10AM, Budget/Finance 1PM. Thu: Planning 10AM, Neighborhood 1PM.
+
+### GLWA (`glwa_scraper.py`)
+
+- **Source:** `glwater.legistar.com/Calendar.aspx`
+- **Method:** Playwright renders the Telerik RadGrid table (`tr.rgRow / tr.rgAltRow`). Parses 13 cells per row: name (0), date (1), time (3), location (4), details link (5), agenda link (7).
+- **Agenda URLs:** From Legistar cell 7 (when not "Not available"). Typically PDF files.
+- **Virtual Info:** Scrapes detail pages for Zoom URLs, phone numbers, meeting IDs. Detail pages only available for recent/imminent meetings.
+- **Unique ID:** `glwa-{YYYYMMDD}-{md5(title)[:12]}`
+- **Issue Tags:** `drinking_water`, `water_quality`, `infrastructure`
+- **Location:** Water Board Building, 735 Randolph St, Detroit
+
+### EGLE (`egle_scraper.py`)
+
+- **Source:** `trumba.com/calendars/deq-events.rss`
+- **Method:** Fetches RSS/XML feed — no browser needed. Classifies items as meetings (hearings, workshops, webinars) or comment periods (deadlines) based on title keywords.
+- **Dual routing:** Meetings → `meetings` table. Comment periods → `comment_periods` table.
+- **Agenda URLs:** From Trumba `weblink` field (mixed HTML pages and PDFs on michigan.gov)
+- **Comment period details:** Extracts facility name, SRN (permit number), start date, comment email, submission instructions.
+- **Unique ID:** `egle-event-{trumba_event_id}` (meetings) or `egle-comment-{trumba_event_id}` (comment periods)
+- **Issue Tags:** Keyword-mapped from title/description (air_quality, water_quality, pfas, climate, energy, etc.)
+- **Region Detection:** Matches county names and city keywords to classify as detroit/southeast_michigan/statewide
+
+### MPSC (`mpsc_scraper.py`)
+
+- **Source:** `michigan.gov/mpsc/commission/events`
+- **Method:** Playwright scrapes the events listing page for links, then visits each detail page to extract schema.org LD+JSON structured data. Also extracts Teams URLs, phone numbers, and conference IDs from page content.
+- **Agenda URLs:** Searches detail pages for PDF links with "agenda" in the text or href (added in scraper sprint, March 2026).
+- **Unique ID:** `mpsc-{YYYY-MM-DD}`
+- **Issue Tags:** `energy`, `utilities`, `dte_energy`, `consumers_energy`, `rates`
+- **Location:** MPSC HQ, 7109 W. Saginaw Hwy, Lansing
+- **Schedule:** Commission meets 1st & 3rd Thursdays (1-2 meetings per scrape)
+
+### Detroit Agenda Summarizer (`escribe_agenda_scraper.py`)
+
+- **Source:** Same eSCRIBE platform as Detroit scraper
+- **Method:** Finds meetings with agendas via the calendar API, then uses Playwright to scrape agenda item HTML from each meeting page. Three fallback patterns for different eSCRIBE markup. Filters out procedural items (roll call, adjournment, etc.). Sends substantive items to Claude Haiku for plain-language summarization.
+- **AI Model:** `claude-haiku-4-5-20251001`
+- **Output:** JSON with `summary` (2-3 sentences) and `key_topics` (lowercase tags like housing, water, zoning, budget, public_hearing)
+- **Linking:** Matches summaries to meetings in the `meetings` table by name + date
+- **Unique ID:** `escribemeetings_guid` (eSCRIBE meeting GUID)
+
+### Generic Agenda Summarizer (`agenda_summarizer.py`)
+
+- **Source:** Any meeting with an `agenda_url` (GLWA, EGLE, MPSC)
+- **Method:** Fetches agenda content via HTTP. Detects format by content-type and URL extension. PDFs extracted with `pdfplumber`. HTML cleaned with `BeautifulSoup` (strips nav, footer, scripts, styles). Truncated to 8000 chars and sent to Claude Haiku.
+- **AI Model:** `claude-haiku-4-5-20251001`
+- **Skips:** Meetings that already have summaries (avoids re-processing and duplicate API costs)
+- **Linking:** Looks up `meeting_id` in the `meetings` table by `source_id`
+- **Unique ID:** `source` + `source_meeting_id` (e.g., `glwa_agenda` + `glwa-20260315-abc123`)
+
+### Federal Register (`federal_register_scraper.py`)
+
+- **Source:** `federalregister.gov/api/v1/documents.json`
+- **Method:** REST API, no authentication. Two strategies:
+  1. **By agency:** Queries 6 federal agencies (EPA, FERC, NRC, Army Corps, FWS, Coast Guard) for notices and proposed rules with open comment periods
+  2. **By keyword:** Searches for "Michigan environment", "Great Lakes", "PFAS", "Line 5"
+- **Relevance filter:** Only keeps documents mentioning Michigan-relevant keywords (Michigan, Great Lakes, Detroit, PFAS, Line 5, DTE, Consumers Energy, Palisades, Fermi, etc.)
+- **Deduplication:** By `document_number` across both search strategies
+- **Rate limiting:** 1 second between API calls
+- **Unique ID:** `fed-reg-{document_number}`
+- **Issue Tags:** Combined from agency mapping + content keyword matching
+
+---
+
+## Database Tables
+
+### `meetings`
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | UUID | Primary key |
+| `source` | text | Scraper identifier (e.g., `detroit_scraper`) |
+| `source_id` | text | Unique ID from source system |
+| `agency` | text | Agency name (e.g., `GLWA`, `EGLE`) |
+| `title`, `description` | text | Meeting details |
+| `start_datetime` | timestamptz | Meeting start |
+| `meeting_date` | date | Date only |
+| `meeting_time` | time | Time only |
+| `location_name`, `location_address`, `location_city` | text | Physical location |
+| `virtual_url`, `virtual_phone`, `virtual_meeting_id` | text | Virtual meeting info |
+| `agenda_url`, `details_url` | text | Links to agenda and detail pages |
+| `issue_tags` | text[] | Topic tags |
+| `meeting_type` | text | e.g., `board_meeting`, `public_hearing` |
+| `latitude`, `longitude` | float | Geocoded location |
+| **Unique constraint:** `(source, source_id)` | | Prevents duplicates on re-scrape |
+
+### `comment_periods`
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | UUID | Primary key |
+| `source` | text | Scraper identifier |
+| `source_id` | text | Unique ID from source |
+| `agency` | text | Agency name |
+| `title`, `description` | text | What the comment period is about |
+| `comment_type` | text | e.g., `air_permit`, `federal_comment` |
+| `start_date`, `end_date` | date | Comment window |
+| `details_url`, `documents_url` | text | Links |
+| `comment_instructions`, `comment_email` | text | How to submit |
+| `facility_name`, `permit_number` | text | For permit-specific periods |
+| `issue_tags` | text[] | Topic tags |
+| **Unique constraint:** `(source, source_id)` | | |
+
+### `agenda_summaries`
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | UUID | Primary key |
+| `meeting_id` | UUID (FK) | Links to `meetings.id` |
+| `source` | text | Summarizer identifier (e.g., `detroit_agenda`, `glwa_agenda`) |
+| `source_meeting_id` | text | Matches source's meeting ID |
+| `escribemeetings_guid` | text | eSCRIBE GUID (Detroit only) |
+| `meeting_body` | text | e.g., `City Council Formal Session` |
+| `meeting_date` | date | Meeting date |
+| `summary` | text | AI-generated plain-language summary |
+| `key_topics` | text[] | Extracted topic tags |
+| `agenda_items` | jsonb | Raw scraped agenda items |
+| `item_count` | int | Number of agenda items |
+| `ai_model` | text | Model used for summarization |
+| **Unique constraints:** `(escribemeetings_guid)` for Detroit, `(source, source_meeting_id)` for others | | |
+
+---
+
+## Running the Scrapers
+
+### Setup
 
 ```bash
 cd scrapers
@@ -21,180 +172,105 @@ pip install -r requirements.txt
 playwright install chromium
 ```
 
-### 2. Set Environment Variables
-
-Create a `.env` file or set these variables:
-
-```bash
+Environment variables (in `.env` or set directly):
+```
 SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=your-key-here
+SUPABASE_SERVICE_ROLE_KEY=your-key
+ANTHROPIC_API_KEY=your-key          # Required for agenda summarization
 ```
 
-## Usage
-
-### Run All Scrapers
+### Run All
 
 ```bash
 python run_scrapers.py
 ```
 
-### Run Specific Scraper
+### Run Individual
 
 ```bash
-python run_scrapers.py mpsc
-python run_scrapers.py glwa
 python run_scrapers.py detroit
+python run_scrapers.py glwa
+python run_scrapers.py egle
+python run_scrapers.py mpsc
+python run_scrapers.py legistar_agenda
+python run_scrapers.py federal_register
 ```
 
-### Run Individual Scraper Directly
+### Run Order (when running all)
 
-```bash
-python mpsc_scraper.py
-python glwa_scraper.py
-python detroit_scraper.py
-```
+1. MPSC, GLWA, Detroit, EGLE (meeting scrapers — parallel-safe)
+2. Detroit agenda summarizer (needs Detroit meetings to exist for linking)
+3. Generic agenda summarizer (GLWA, EGLE, MPSC — needs meetings to exist)
+4. Federal Register (independent, no browser needed)
 
-## Expected Results
-
-| Scraper | Typical Meeting Count | Notes |
-|---------|----------------------|-------|
-| MPSC | 1-2 | 1st & 3rd Thursdays |
-| GLWA | 50-70 | Board + committees |
-| Detroit | 20-50 | City Council + committees |
+---
 
 ## GitHub Actions
 
-The `daily-meetings-sync.yml` workflow:
-- Runs daily at 6 AM EST
-- Can be triggered manually from GitHub Actions tab
-- Sends Slack notifications (if webhook configured)
+**Workflow:** `.github/workflows/daily-meetings-sync.yml`
+- **Schedule:** Daily at 6 AM EST (11:00 UTC)
+- **Manual trigger:** Actions tab → Daily Meeting Scraper → Run workflow (can select individual scraper)
+- **Slack notifications:** Sends results if `SLACK_WEBHOOK_URL` secret is configured
 
-### Setup GitHub Actions
+### Required GitHub Secrets
 
-1. Copy `daily-meetings-sync.yml` to `.github/workflows/`
-2. Add secrets in GitHub repo settings:
-   - `SUPABASE_URL`
-   - `SUPABASE_SERVICE_ROLE_KEY`
-   - `SLACK_WEBHOOK_URL` (optional)
+| Secret | Purpose |
+|--------|---------|
+| `SUPABASE_URL` | Database connection |
+| `SUPABASE_SERVICE_ROLE_KEY` | Database auth |
+| `ANTHROPIC_API_KEY` | AI agenda summarization |
+| `SLACK_WEBHOOK_URL` | Slack notifications (optional) |
 
-## Database Schema
+---
 
-Meetings are stored in the `meetings` table with these key fields:
+## API Endpoints
 
-| Field | Description |
-|-------|-------------|
-| `source` | Scraper identifier (e.g., "mpsc_scraper") |
-| `source_id` | Unique ID from source (prevents duplicates) |
-| `agency` | Agency name (MPSC, GLWA, City of Detroit) |
-| `title` | Meeting title |
-| `start_datetime` | Meeting start time (with timezone) |
-| `latitude` / `longitude` | Geocoded location |
-| `issue_tags` | Array of relevant topics |
-| `status` | "upcoming", "past", "cancelled" |
+These endpoints serve scraped data. See `api/main.py` for full details.
 
-### Required: Unique Constraint
+| Endpoint | Returns |
+|----------|---------|
+| `GET /api/meetings` | Upcoming meetings (filterable by source, agency, date) |
+| `GET /api/comment-periods` | Open comment periods |
+| `GET /api/agenda-summaries` | AI-generated agenda summaries |
+| `GET /api/agenda-summaries/{id}` | Single summary with raw items |
+| `GET /api/meetings/{id}/agenda-summary` | Summary for a specific meeting |
 
-**IMPORTANT:** The `meetings` table MUST have a unique constraint on `(source, source_id)` to prevent duplicates when scrapers run multiple times.
+---
 
-```sql
--- Run this ONCE in Supabase SQL Editor:
-ALTER TABLE meetings 
-ADD CONSTRAINT meetings_source_source_id_key 
-UNIQUE (source, source_id);
+## Tests
+
+```bash
+# Agenda summarizer tests (12 tests)
+cd scrapers && python -m pytest test_agenda_summarizer.py -v
+
+# Federal Register tests (13 tests)
+cd scrapers && python -m pytest test_federal_register.py -v
+
+# API tests (59 tests)
+cd .. && python -m pytest api/tests/ -v
 ```
 
-The scraper will check for duplicates before running and warn you if this constraint is missing.
+---
 
-## Scraper Details
+## Adding a New Scraper
 
-### MPSC Scraper
-- **Strategy**: Date-based (generates expected 1st/3rd Thursday dates)
-- **Location**: MPSC HQ, Lansing (42.7325, -84.6358)
-- **Issue Tags**: dte_energy, utilities, energy_policy
+1. Create `scrapers/{agency}_scraper.py` following existing patterns
+2. Implement: `async def main()` → scrape → upsert to `meetings` or `comment_periods`
+3. Use `source = "{agency}_scraper"` and stable `source_id` values
+4. Add to `run_scrapers.py` (import + add to `run_all_scrapers` + `scrapers` dict)
+5. Add to `.github/workflows/daily-meetings-sync.yml` options
+6. Write tests
+7. If agendas are available, wire into `agenda_summarizer.summarize_meetings()`
 
-### GLWA Scraper
-- **Strategy**: Legistar calendar scraping
-- **Location**: Water Board Building, Detroit (42.3350, -83.0456)
-- **Issue Tags**: drinking_water, water_quality, infrastructure
-
-### Detroit Scraper
-- **Strategy**: Legistar calendar scraping
-- **Location**: Coleman A. Young Municipal Center (42.3293, -83.0448)
-- **Issue Tags**: local_government, varies by committee
-
-### EGLE Scraper (Pending)
-- **Challenge**: Uses MiEnviro Portal (JavaScript SPA)
-- **Approach**: May need direct API access or Playwright with network interception
-- **Target URL**: https://mienviro.michigan.gov/ncore/external/publicnotice/search
-
-## Adding New Scrapers
-
-1. Create a new file: `{agency}_scraper.py`
-2. Follow the pattern from existing scrapers:
-   - `async def scrape_{agency}_meetings()` - Main scrape function
-   - `def upsert_meetings(meetings)` - Database insert
-   - `async def main()` - Entry point
-3. Add to `run_scrapers.py`:
-   - Import the scraper
-   - Add to `run_all_scrapers()` and `scrapers` dict
-4. Test locally before pushing
+---
 
 ## Troubleshooting
 
-### "No meetings found"
-
-Michigan.gov sites can be slow or use dynamic loading. Try:
-- Increasing `wait_for_selector` timeout
-- Adding explicit `asyncio.sleep()` delays
-- Checking if the page structure changed
-
-### Playwright Issues
-
-```bash
-# Reinstall browsers
-playwright install chromium
-
-# Install system dependencies (Linux)
-playwright install-deps chromium
-```
-
-### Database Errors
-
-- Check Supabase credentials
-- Verify the `meetings` table exists
-- Check for constraint violations (duplicate source_id)
-
-### Duplicate Records
-
-If you see more records than expected, the unique constraint is missing:
-
-```sql
--- 1. Check for duplicates:
-SELECT source, source_id, COUNT(*) 
-FROM meetings 
-GROUP BY source, source_id 
-HAVING COUNT(*) > 1;
-
--- 2. Delete duplicates (keeps newest):
-DELETE FROM meetings WHERE id IN (
-  SELECT id FROM (
-    SELECT id, ROW_NUMBER() OVER (
-      PARTITION BY source, source_id ORDER BY created_at DESC
-    ) as rn FROM meetings
-  ) t WHERE rn > 1
-);
-
--- 3. Add the unique constraint:
-ALTER TABLE meetings 
-ADD CONSTRAINT meetings_source_source_id_key 
-UNIQUE (source, source_id);
-```
-
-## Future Scrapers to Add
-
-- [ ] EGLE MiEnviro Portal (public notices)
-- [ ] Wayne County Commission
-- [ ] Oakland County Board
-- [ ] Macomb County Board
-- [ ] Detroit Planning Commission
-- [ ] Detroit Documenters API (if available)
+| Problem | Likely Cause | Fix |
+|---------|-------------|-----|
+| "No meetings found" | Site structure changed or slow load | Check the source URL manually, increase timeouts |
+| Playwright errors | Browser not installed | `playwright install chromium` |
+| Duplicate records | Unique constraint missing | Run: `ALTER TABLE meetings ADD CONSTRAINT meetings_source_source_id_key UNIQUE (source, source_id);` |
+| Agenda summaries empty | ANTHROPIC_API_KEY not set | Add to `.env` or GitHub secrets |
+| Federal Register returns 0 | No current MI-relevant comment periods | Normal — check manually at federalregister.gov |
+| Stale data | Scraper hasn't run | Check GitHub Actions run history |
