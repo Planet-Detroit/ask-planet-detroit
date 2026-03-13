@@ -13,6 +13,8 @@ Routes results to Supabase table:
 import asyncio
 import json
 import os
+
+from scraper_utils import print_result
 import re
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
@@ -408,8 +410,13 @@ async def main():
         await browser.close()
 
     print(f"\nDone! Processed {len(summaries)} agenda summaries")
+    print_result("detroit_agenda", "ok", len(summaries), "agenda_summaries")
     return summaries
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except Exception as e:
+        print_result("detroit_agenda", "error", error=str(e))
+        raise

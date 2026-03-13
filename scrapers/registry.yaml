@@ -1,0 +1,62 @@
+# Scraper Registry — single source of truth for all scrapers
+# Adding a scraper? Just add an entry here. No need to edit run_scrapers.py or GitHub Actions.
+#
+# Fields:
+#   name: Human-readable name (used in logs and summaries)
+#   module: Python module to import (must have an async main() function)
+#   table: Supabase table this scraper writes to (meetings or comment_periods)
+#   platform: Source system (e.g., escribemeetings, legistar, trumba, federal_register_api, michigan_gov)
+#   needs_browser: Whether Playwright is required (affects GitHub Actions job assignment)
+#   enabled: Set to false to skip without deleting the entry
+#   depends_on: List of scraper keys that must run before this one (optional)
+
+scrapers:
+  mpsc:
+    name: MPSC
+    module: mpsc_scraper
+    table: meetings
+    platform: michigan_gov
+    needs_browser: true
+    enabled: true
+
+  glwa:
+    name: GLWA
+    module: glwa_scraper
+    table: meetings
+    platform: legistar
+    needs_browser: true
+    enabled: true
+
+  detroit:
+    name: Detroit
+    module: detroit_scraper
+    table: meetings
+    platform: escribemeetings
+    needs_browser: true
+    enabled: true
+
+  egle:
+    name: EGLE
+    module: egle_scraper
+    table: meetings
+    platform: trumba
+    needs_browser: false
+    enabled: true
+
+  detroit_agenda:
+    name: Detroit Agendas
+    module: escribe_agenda_scraper
+    table: agenda_summaries
+    platform: escribemeetings
+    needs_browser: true
+    enabled: true
+    depends_on:
+      - detroit
+
+  federal_register:
+    name: Federal Register
+    module: federal_register_scraper
+    table: comment_periods
+    platform: federal_register_api
+    needs_browser: false
+    enabled: true

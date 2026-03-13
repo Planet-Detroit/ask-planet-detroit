@@ -13,6 +13,8 @@ import hashlib
 import json
 import os
 import time
+
+from scraper_utils import print_result
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
@@ -317,9 +319,14 @@ async def main():
     upsert_comment_periods(periods)
 
     print(f"\nDone! {len(periods)} federal comment periods processed")
+    print_result("federal_register", "ok", len(periods), "comment_periods")
     return periods
 
 
 if __name__ == "__main__":
     import asyncio
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except Exception as e:
+        print_result("federal_register", "error", error=str(e))
+        raise

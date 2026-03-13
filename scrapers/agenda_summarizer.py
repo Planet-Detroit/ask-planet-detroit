@@ -267,3 +267,76 @@ def summarize_meetings(source_name, meetings):
 
     print(f"  Done: {len(summaries)} new summaries for {source_name}")
     return summaries
+
+
+def summarize_unsummarized_meetings():
+    """Query Supabase for meetings with agenda_url but no summary, then summarize them.
+
+    Skips Detroit meetings — those use the eSCRIBE-specific summarizer.
+    This function makes agenda_summarizer.py fully standalone: it doesn't need
+    scraped data passed in-memory from run_scrapers.py.
+
+    Returns:
+        List of summary records that were upserted.
+    """
+    if not ANTHROPIC_API_KEY:
+        print("ANTHROPIC_API_KEY not set, skipping agenda summarization")
+        return []
+
+    supabase = get_supabase()
+
+    # Find meetings that have an agenda_url but no corresponding summary
+    print("Querying for meetings with agendas but no summaries...")
+
+    try:
+        # Get all meetings with agenda URLs, excluding Detroit (handled by escribe_agenda_scraper)
+        meetings_resp = supabase.table("meetings") \
+            .select("id, title, agency, meeting_date, agenda_url, source, source_id") \
+            .neq("source", "detroit_scraper") \
+            .not_.is_("agenda_url", "null") \
+            .execute()
+
+        if not meetings_resp.data:
+            print("No meetings with agenda URLs found (excluding Detroit)")
+            return []
+
+        # Get existing summaries to skip
+        existing_resp = supabase.table("agenda_summaries") \
+            .select("source_meeting_id") \
+            .execute()
+        already_summarized = {r["source_meeting_id"] for r in (existing_resp.data or [])}
+
+        # Filter to unsummarized meetings
+        unsummarized = [
+            m for m in meetings_resp.data
+            if m.get("source_id") and m["source_id"] not in already_summarized
+        ]
+
+        if not unsummarized:
+            print("All meetings with agendas already have summaries")
+            return []
+
+        print(f"Found {len(unsummarized)} meetings needing summaries")
+
+    except Exception as e:
+        print(f"Error querying meetings: {e}")
+        return []
+
+    # Group by source for organized logging
+    by_source = {}
+    for m in unsummarized:
+        source = m.get("source", "unknown")
+        by_source.setdefault(source, []).append(m)
+
+    all_summaries = []
+    for source, meetings in by_source.items():
+        source_label = f"{source}_agenda"
+        summaries = summarize_meetings(source_label, meetings)
+        all_summaries.extend(summaries)
+
+    print(f"\nTotal: {len(all_summaries)} new summaries created")
+    return all_summaries
+
+
+if __name__ == "__main__":
+    summarize_unsummarized_meetings()

@@ -13,6 +13,8 @@ import os
 import re
 from datetime import datetime
 from zoneinfo import ZoneInfo
+
+from scraper_utils import print_result
 from playwright.async_api import async_playwright
 from supabase import create_client
 from dotenv import load_dotenv
@@ -278,8 +280,13 @@ async def main():
         upsert_meetings(meetings)
 
     print("\nDone!")
+    print_result("mpsc", "ok", len(meetings), "meetings")
     return meetings
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except Exception as e:
+        print_result("mpsc", "error", error=str(e))
+        raise

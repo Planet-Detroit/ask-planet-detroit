@@ -13,6 +13,8 @@ import asyncio
 import hashlib
 import os
 import re
+
+from scraper_utils import print_result
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from playwright.async_api import async_playwright
@@ -331,8 +333,13 @@ async def main():
         upsert_meetings(meetings)
 
     print("\nDone!")
+    print_result("glwa", "ok", len(meetings), "meetings")
     return meetings
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except Exception as e:
+        print_result("glwa", "error", error=str(e))
+        raise
