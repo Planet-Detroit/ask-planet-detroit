@@ -4,12 +4,12 @@ on:
   # Run every day at 6 AM EST (11:00 UTC)
   schedule:
     - cron: '0 11 * * *'
-  
+
   # Allow manual triggering from GitHub UI
   workflow_dispatch:
     inputs:
       scraper:
-        description: 'Which scraper to run'
+        description: 'Which scraper to run (or "all")'
         required: false
         default: 'all'
         type: choice
@@ -18,161 +18,201 @@ on:
           - mpsc
           - glwa
           - detroit
+          - detroit_agenda
           - egle
+          - washtenaw
+          - oakland
+          - macomb
+          - wayne_county
+          - federal_register
 
 jobs:
-  scrape-meetings:
+  # --- Browser scrapers (need Playwright) ---
+  browser-scrapers:
+    if: github.event.inputs.scraper == 'all' || github.event.inputs.scraper == '' || contains(fromJSON('["mpsc","glwa","detroit","detroit_agenda","wayne_county"]'), github.event.inputs.scraper)
     runs-on: ubuntu-latest
-    
+    strategy:
+      fail-fast: false
+      matrix:
+        scraper: [mpsc, glwa, detroit, detroit_agenda, wayne_county]
+
     steps:
+      - name: Check if this scraper was requested
+        id: check
+        run: |
+          REQUESTED="${{ github.event.inputs.scraper || 'all' }}"
+          if [ "$REQUESTED" = "all" ] || [ "$REQUESTED" = "${{ matrix.scraper }}" ]; then
+            echo "should_run=true" >> $GITHUB_OUTPUT
+          else
+            echo "should_run=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Checkout code
+        if: steps.check.outputs.should_run == 'true'
         uses: actions/checkout@v4
-      
+
       - name: Set up Python
+        if: steps.check.outputs.should_run == 'true'
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      
+
       - name: Install dependencies
+        if: steps.check.outputs.should_run == 'true'
         run: |
           python -m pip install --upgrade pip
           pip install -r scrapers/requirements.txt
           playwright install chromium
           playwright install-deps chromium
-      
-      - name: Run meeting scrapers
+
+      - name: Run ${{ matrix.scraper }} scraper
+        if: steps.check.outputs.should_run == 'true'
+        id: scrape
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          cd scrapers
+          python run_scrapers.py ${{ matrix.scraper }} 2>&1 | tee scrape_output.txt
+
+          # Parse RESULT line for machine-readable output
+          RESULT_LINE=$(grep "^RESULT:" scrape_output.txt | tail -1 || echo "")
+          if [ -n "$RESULT_LINE" ]; then
+            STATUS=$(echo "$RESULT_LINE" | python3 -c "import sys,json; d=json.loads(sys.stdin.read().split('RESULT:',1)[1]); print(d.get('status','unknown'))")
+            COUNT=$(echo "$RESULT_LINE" | python3 -c "import sys,json; d=json.loads(sys.stdin.read().split('RESULT:',1)[1]); print(d.get('count',0))")
+            echo "status=$STATUS" >> $GITHUB_OUTPUT
+            echo "count=$COUNT" >> $GITHUB_OUTPUT
+          else
+            echo "status=unknown" >> $GITHUB_OUTPUT
+            echo "count=0" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create summary
+        if: always() && steps.check.outputs.should_run == 'true'
+        run: |
+          echo "## ${{ matrix.scraper }} Scraper Results" >> $GITHUB_STEP_SUMMARY
+          echo "**Status:** ${{ steps.scrape.outputs.status || 'unknown' }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Count:** ${{ steps.scrape.outputs.count || '0' }}" >> $GITHUB_STEP_SUMMARY
+
+  # --- API scrapers (no Playwright needed) ---
+  api-scrapers:
+    if: github.event.inputs.scraper == 'all' || github.event.inputs.scraper == '' || contains(fromJSON('["egle","federal_register","washtenaw","oakland","macomb"]'), github.event.inputs.scraper)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        scraper: [egle, federal_register, washtenaw, oakland, macomb]
+
+    steps:
+      - name: Check if this scraper was requested
+        id: check
+        run: |
+          REQUESTED="${{ github.event.inputs.scraper || 'all' }}"
+          if [ "$REQUESTED" = "all" ] || [ "$REQUESTED" = "${{ matrix.scraper }}" ]; then
+            echo "should_run=true" >> $GITHUB_OUTPUT
+          else
+            echo "should_run=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Checkout code
+        if: steps.check.outputs.should_run == 'true'
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        if: steps.check.outputs.should_run == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        if: steps.check.outputs.should_run == 'true'
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r scrapers/requirements.txt
+
+      - name: Run ${{ matrix.scraper }} scraper
+        if: steps.check.outputs.should_run == 'true'
         id: scrape
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           cd scrapers
-          
-          SCRAPER="${{ github.event.inputs.scraper || 'all' }}"
-          
-          if [ "$SCRAPER" = "all" ]; then
-            python run_scrapers.py 2>&1 | tee scrape_output.txt
+          python run_scrapers.py ${{ matrix.scraper }} 2>&1 | tee scrape_output.txt
+
+          RESULT_LINE=$(grep "^RESULT:" scrape_output.txt | tail -1 || echo "")
+          if [ -n "$RESULT_LINE" ]; then
+            STATUS=$(echo "$RESULT_LINE" | python3 -c "import sys,json; d=json.loads(sys.stdin.read().split('RESULT:',1)[1]); print(d.get('status','unknown'))")
+            COUNT=$(echo "$RESULT_LINE" | python3 -c "import sys,json; d=json.loads(sys.stdin.read().split('RESULT:',1)[1]); print(d.get('count',0))")
+            echo "status=$STATUS" >> $GITHUB_OUTPUT
+            echo "count=$COUNT" >> $GITHUB_OUTPUT
           else
-            python run_scrapers.py $SCRAPER 2>&1 | tee scrape_output.txt
+            echo "status=unknown" >> $GITHUB_OUTPUT
+            echo "count=0" >> $GITHUB_OUTPUT
           fi
-          
-          # Extract counts from output
-          MPSC_COUNT=$(grep -oP 'MPSC: \K\d+' scrape_output.txt || echo "0")
-          GLWA_COUNT=$(grep -oP 'GLWA: \K\d+' scrape_output.txt || echo "0")
-          DETROIT_COUNT=$(grep -oP 'DETROIT: \K\d+' scrape_output.txt || echo "0")
-          EGLE_COUNT=$(grep -oP 'EGLE: \K\d+' scrape_output.txt || echo "0")
-          TOTAL=$(grep -oP 'TOTAL: \K\d+' scrape_output.txt || echo "0")
-          
-          # Check for errors
-          if grep -q "ERROR" scrape_output.txt; then
-            echo "has_errors=true" >> $GITHUB_OUTPUT
-          else
-            echo "has_errors=false" >> $GITHUB_OUTPUT
-          fi
-          
-          echo "mpsc_count=$MPSC_COUNT" >> $GITHUB_OUTPUT
-          echo "glwa_count=$GLWA_COUNT" >> $GITHUB_OUTPUT
-          echo "detroit_count=$DETROIT_COUNT" >> $GITHUB_OUTPUT
-          echo "egle_count=$EGLE_COUNT" >> $GITHUB_OUTPUT
-          echo "total_count=$TOTAL" >> $GITHUB_OUTPUT
-      
+
       - name: Create summary
-        if: always()
+        if: always() && steps.check.outputs.should_run == 'true'
         run: |
-          echo "## Meeting Scraper Results 📅" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Run completed:** $(date)" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Agency | Meetings Found |" >> $GITHUB_STEP_SUMMARY
-          echo "|--------|----------------|" >> $GITHUB_STEP_SUMMARY
-          echo "| MPSC | ${{ steps.scrape.outputs.mpsc_count }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| GLWA | ${{ steps.scrape.outputs.glwa_count }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Detroit | ${{ steps.scrape.outputs.detroit_count }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| EGLE | ${{ steps.scrape.outputs.egle_count }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Total** | **${{ steps.scrape.outputs.total_count }}** |" >> $GITHUB_STEP_SUMMARY
-          
-          if [ "${{ steps.scrape.outputs.has_errors }}" = "true" ]; then
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "⚠️ **Some errors occurred.** Check logs for details." >> $GITHUB_STEP_SUMMARY
+          echo "## ${{ matrix.scraper }} Scraper Results" >> $GITHUB_STEP_SUMMARY
+          echo "**Status:** ${{ steps.scrape.outputs.status || 'unknown' }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Count:** ${{ steps.scrape.outputs.count || '0' }}" >> $GITHUB_STEP_SUMMARY
+
+  # --- Summarizer (runs after all scrapers) ---
+  summarizer:
+    needs: [browser-scrapers, api-scrapers]
+    if: always() && (github.event.inputs.scraper == 'all' || github.event.inputs.scraper == '')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r scrapers/requirements.txt
+
+      - name: Summarize agendas
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          cd scrapers
+          python -m agenda_summarizer
+
+      - name: Cleanup expired records
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          cd scrapers
+          python cleanup.py
+
+  # --- Notify ---
+  notify:
+    needs: [browser-scrapers, api-scrapers, summarizer]
+    if: always() && secrets.SLACK_WEBHOOK_URL != ''
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Notify Slack
+        run: |
+          if [ "${{ needs.browser-scrapers.result }}" = "failure" ] || [ "${{ needs.api-scrapers.result }}" = "failure" ]; then
+            STATUS_EMOJI="Warning"
+            STATUS_TEXT="Some scrapers failed"
+          else
+            STATUS_EMOJI="Complete"
+            STATUS_TEXT="All scrapers completed"
           fi
-      
-      - name: Notify Slack on success
-        if: success() && secrets.SLACK_WEBHOOK_URL != ''
-        run: |
+
           curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
             -H 'Content-Type: application/json' \
-            -d @- <<EOF
-          {
-            "text": "📅 Daily Meeting Scraper Complete",
-            "blocks": [
-              {
-                "type": "header",
-                "text": {
-                  "type": "plain_text",
-                  "text": "📅 Meeting Scraper Results"
-                }
-              },
-              {
-                "type": "section",
-                "fields": [
-                  {
-                    "type": "mrkdwn",
-                    "text": "*MPSC:*\n${{ steps.scrape.outputs.mpsc_count }} meetings"
-                  },
-                  {
-                    "type": "mrkdwn",
-                    "text": "*GLWA:*\n${{ steps.scrape.outputs.glwa_count }} meetings"
-                  },
-                  {
-                    "type": "mrkdwn",
-                    "text": "*Detroit:*\n${{ steps.scrape.outputs.detroit_count }} meetings"
-                  },
-                  {
-                    "type": "mrkdwn",
-                    "text": "*EGLE:*\n${{ steps.scrape.outputs.egle_count }} meetings"
-                  },
-                  {
-                    "type": "mrkdwn",
-                    "text": "*Total:*\n${{ steps.scrape.outputs.total_count }} meetings"
-                  }
-                ]
-              },
-              {
-                "type": "context",
-                "elements": [
-                  {
-                    "type": "mrkdwn",
-                    "text": "✅ Completed: $(date '+%b %d, %Y %I:%M %p') UTC"
-                  }
-                ]
-              }
-            ]
-          }
-          EOF
-      
-      - name: Notify Slack on failure
-        if: failure() && secrets.SLACK_WEBHOOK_URL != ''
-        run: |
-          curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
-            -H 'Content-Type: application/json' \
-            -d @- <<EOF
-          {
-            "text": "❌ Meeting Scraper Failed",
-            "blocks": [
-              {
-                "type": "header",
-                "text": {
-                  "type": "plain_text",
-                  "text": "❌ Meeting Scraper Failed"
-                }
-              },
-              {
-                "type": "section",
-                "text": {
-                  "type": "mrkdwn",
-                  "text": "The daily meeting scraper encountered an error. <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View logs>"
-                }
-              }
-            ]
-          }
-          EOF
+            -d "{\"text\": \"Meeting Scraper: ${STATUS_TEXT}. <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View details>\"}"

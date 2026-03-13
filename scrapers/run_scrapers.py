@@ -54,10 +54,20 @@ def ensure_unique_constraint():
         total_result = supabase.table("meetings").select("id", count="exact").execute()
         total_count = total_result.count or 0
 
-        # Get unique source+source_id combinations count
-        all_meetings = supabase.table("meetings").select("source,source_id").execute()
+        # Get unique source+source_id combinations count (paginated)
+        all_meetings_data = []
+        offset = 0
+        page_size = 1000
+        while True:
+            page = supabase.table("meetings").select("source,source_id").range(offset, offset + page_size - 1).execute()
+            batch = page.data or []
+            all_meetings_data.extend(batch)
+            if len(batch) < page_size:
+                break
+            offset += page_size
+
         unique_combos = set()
-        for m in all_meetings.data:
+        for m in all_meetings_data:
             if m.get('source') and m.get('source_id'):
                 unique_combos.add((m['source'], m['source_id']))
 
@@ -199,6 +209,21 @@ async def run_all_scrapers(registry, requested_keys=None):
         print(f"ERROR running agenda summarizer: {e}")
         errors.append(f"Agenda Summarizer: {e}")
         results["agenda_summaries"] = []
+
+    # Cleanup expired records
+    print(f"\n{'=' * 70}")
+    print("CLEANUP")
+    print("=" * 70)
+    try:
+        from cleanup import expire_old_meetings, expire_old_comment_periods
+        expired_meetings = expire_old_meetings()
+        expired_comments = expire_old_comment_periods()
+        if expired_meetings or expired_comments:
+            print(f"  Expired {expired_meetings} meetings, {expired_comments} comment periods")
+        else:
+            print("  No expired records to clean up")
+    except Exception as e:
+        print(f"  Cleanup error (non-fatal): {e}")
 
     # Summary table
     print(f"\n{'=' * 70}")

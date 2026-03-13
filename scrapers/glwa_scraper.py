@@ -183,6 +183,17 @@ async def scrape_glwa_meetings():
                             if href:
                                 agenda_url = f"https://glwater.legistar.com/{href}" if not href.startswith("http") else href
 
+                # Cell 9: Minutes link (if available — Legistar typically puts minutes here)
+                minutes_url = None
+                if len(cells) > 9:
+                    minutes_link_el = await cells[9].query_selector("a")
+                    if minutes_link_el:
+                        minutes_text = (await minutes_link_el.inner_text()).strip()
+                        if minutes_text and minutes_text != "Not available":
+                            href = await minutes_link_el.get_attribute("href")
+                            if href:
+                                minutes_url = f"https://glwater.legistar.com/{href}" if not href.startswith("http") else href
+
                 # Determine if virtual/hybrid based on location
                 is_zoom = "zoom" in location_text.lower()
                 is_in_person = "water board" in location_text.lower() or "building" in location_text.lower()
@@ -221,6 +232,7 @@ async def scrape_glwa_meetings():
                     "status": "upcoming",
                     "details_url": detail_url,
                     "agenda_url": agenda_url,
+                    "minutes_url": minutes_url,
                 }
 
                 meetings.append(meeting)

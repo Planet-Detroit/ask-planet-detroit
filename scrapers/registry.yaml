@@ -77,6 +77,14 @@ scrapers:
     needs_browser: false
     enabled: true
 
+  wayne_county:
+    name: Wayne County
+    module: wayne_county_scraper
+    table: meetings
+    platform: granicus
+    needs_browser: true
+    enabled: true
+
   federal_register:
     name: Federal Register
     module: federal_register_scraper
