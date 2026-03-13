@@ -62,14 +62,34 @@ No work needed. The full pipeline exists:
 
 ### Commits
 - `cbf0271` — Add generic agenda summarizer for GLWA, EGLE, and MPSC
+- `9a836d2` — Add agenda summarizer tests and sprint log
+
+---
+
+## Phase 3: Federal Register API — COMPLETE
+
+### What was built
+
+**`scrapers/federal_register_scraper.py`** (new) — Fetches open comment periods from federalregister.gov:
+- Two search strategies: by agency (EPA, FERC, NRC, Army Corps, FWS, Coast Guard) and by keyword (Michigan, Great Lakes, PFAS, Line 5, DTE, etc.)
+- Deduplicates results across strategies
+- Extracts issue tags from agency + content keywords
+- Stores in `comment_periods` table alongside EGLE comment periods
+- AI summary of abstracts via Claude Haiku (optional, uses ANTHROPIC_API_KEY)
+- Rate-limited (1s between API calls)
+- No authentication required
+
+**`scrapers/test_federal_register.py`** (new) — 13 tests covering relevance filtering, tag extraction, record building
+
+### Commits
+- `7f48b32` — Add Federal Register scraper for Michigan environmental comment periods
+
+### Skipped: Regulations.gov
+Requires API key (`REGULATIONS_GOV_API_KEY`). Overlaps significantly with Federal Register for comment period tracking. Can add later if needed for tracking individual comments on dockets.
 
 ---
 
 ## TODO: Remaining phases
-
-### Phase 3: Federal APIs
-- [ ] Federal Register scraper (`federalregister.gov` API, no auth)
-- [ ] Regulations.gov scraper (needs API key)
 
 ### Phase 4: Local Bodies
 - [ ] Wayne County Commission
