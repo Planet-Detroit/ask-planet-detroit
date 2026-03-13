@@ -67,7 +67,7 @@ class TestBuildCommentPeriod:
             "document_number": "2026-12345",
             "type": "PROPOSED_RULE",
             "publication_date": "2026-03-01",
-            "comment_end_date": "2026-04-15",
+            "comments_close_on": "2026-04-15",
             "html_url": "https://federalregister.gov/d/2026-12345",
             "agencies": [{"name": "Environmental Protection Agency", "slug": "environmental-protection-agency"}],
         }

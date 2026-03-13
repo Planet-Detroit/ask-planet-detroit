@@ -173,8 +173,8 @@ def fetch_comment_periods():
             "conditions[comment_date][gte]": datetime.now().strftime("%m/%d/%Y"),
             "fields[]": [
                 "title", "abstract", "document_number", "type",
-                "publication_date", "comment_end_date", "html_url",
-                "agencies", "comments_close_on", "regulation_id_numbers",
+                "publication_date", "html_url",
+                "agencies", "comment_url", "comments_close_on",
             ],
             "per_page": 50,
             "order": "newest",
@@ -209,8 +209,8 @@ def fetch_comment_periods():
             "conditions[comment_date][gte]": datetime.now().strftime("%m/%d/%Y"),
             "fields[]": [
                 "title", "abstract", "document_number", "type",
-                "publication_date", "comment_end_date", "html_url",
-                "agencies", "comments_close_on",
+                "publication_date", "html_url",
+                "agencies", "comment_url", "comments_close_on",
             ],
             "per_page": 25,
             "order": "newest",
@@ -239,7 +239,7 @@ def build_comment_period(doc):
     title = doc.get("title", "Untitled")
     abstract = doc.get("abstract", "")
     doc_number = doc.get("document_number", "")
-    comment_end = doc.get("comment_end_date") or doc.get("comments_close_on")
+    comment_end = doc.get("comments_close_on")
     pub_date = doc.get("publication_date", "")
     html_url = doc.get("html_url", "")
     agencies = doc.get("agencies", [])
