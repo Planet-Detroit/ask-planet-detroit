@@ -34,7 +34,7 @@ AGENCIES = [
     "environmental-protection-agency",
     "federal-energy-regulatory-commission",
     "nuclear-regulatory-commission",
-    "army-corps-of-engineers",
+    "engineers-corps",
     "fish-and-wildlife-service",
     "coast-guard",
 ]
@@ -69,7 +69,7 @@ AGENCY_TAGS = {
     "environmental-protection-agency": ["environment", "epa"],
     "federal-energy-regulatory-commission": ["energy", "utilities"],
     "nuclear-regulatory-commission": ["energy", "nuclear"],
-    "army-corps-of-engineers": ["infrastructure", "water_quality", "great_lakes"],
+    "engineers-corps": ["infrastructure", "water_quality", "great_lakes"],
     "fish-and-wildlife-service": ["environment", "wildlife"],
     "coast-guard": ["great_lakes", "maritime"],
 }
@@ -220,11 +220,12 @@ def fetch_comment_periods():
             resp = httpx.get(FR_API, params=params, timeout=30)
             if resp.status_code == 200:
                 docs = resp.json().get("results", [])
-                for doc in docs:
+                relevant = [d for d in docs if is_michigan_relevant(d)]
+                for doc in relevant:
                     # Deduplicate by document_number
                     if not any(r.get("document_number") == doc.get("document_number") for r in all_results):
                         all_results.append(doc)
-                print(f"    '{keyword}': {len(docs)} docs")
+                print(f"    '{keyword}': {len(docs)} docs, {len(relevant)} Michigan-relevant")
         except Exception as e:
             print(f"    Error searching '{keyword}': {e}")
 
