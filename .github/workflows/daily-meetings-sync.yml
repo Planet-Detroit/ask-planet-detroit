@@ -20,6 +20,7 @@ on:
           - detroit
           - egle
           - legistar_agenda
+          - federal_register
 
 jobs:
   scrape-meetings:
