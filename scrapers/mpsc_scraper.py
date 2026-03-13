@@ -120,20 +120,21 @@ async def scrape_meeting_detail(page, url):
         conf_match = re.search(r'Conference\s*ID[:\s]*(\d[\d\s]*\d#?)', content, re.IGNORECASE)
         conference_id = conf_match.group(1).strip() if conf_match else None
 
-        # Extract agenda URL — look for PDF links on the page
+        # Extract agenda URL — look for PDF links with "agenda" in the text or filename
+        # Exclude generic search pages (ScheduleAgendaSearch) which aren't actual agendas
         agenda_url = None
-        agenda_links = await page.query_selector_all('a[href$=".pdf"], a[href*="agenda" i]')
-        for link in agenda_links:
+        pdf_links = await page.query_selector_all('a[href$=".pdf"]')
+        for link in pdf_links:
             href = await link.get_attribute("href")
             link_text = (await link.inner_text()).strip().lower()
             if href and ("agenda" in link_text or "agenda" in href.lower()):
                 agenda_url = f"https://www.michigan.gov{href}" if not href.startswith("http") else href
                 break
-        # Fallback: any PDF link on the page that isn't a generic document
+        # Fallback: any PDF link on the page
         if not agenda_url:
-            for link in agenda_links:
+            for link in pdf_links:
                 href = await link.get_attribute("href")
-                if href and href.endswith(".pdf"):
+                if href:
                     agenda_url = f"https://www.michigan.gov{href}" if not href.startswith("http") else href
                     break
 
