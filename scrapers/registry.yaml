@@ -251,6 +251,14 @@ scrapers:
     needs_browser: false
     enabled: true
 
+  troy:
+    name: City of Troy
+    module: troy_scraper
+    table: meetings
+    platform: revize
+    needs_browser: false
+    enabled: true
+
   dearborn:
     name: City of Dearborn
     module: dearborn_scraper
