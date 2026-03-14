@@ -109,6 +109,24 @@ CANARY_CONFIGS = {
             {"type": "text", "pattern": r"EID=\d+", "description": "Event ID links"},
         ],
     },
+    "novi": {
+        "name": "Novi (MuniWeb CMS)",
+        "url": "https://www.cityofnovi.org/agendas-minutes/city-council/2026/",
+        "needs_browser": False,
+        "checks": [
+            {"type": "css", "selector": "div.card", "description": "Bootstrap card containers"},
+            {"type": "css", "selector": "div.card-header", "description": "Card date headers"},
+        ],
+    },
+    "pontiac_agendas": {
+        "name": "Pontiac (Revize agendas)",
+        "url": "https://pontiac.mi.us/government/city_council/agendas___minutes.php",
+        "needs_browser": False,
+        "checks": [
+            {"type": "css", "selector": "table[style*='border-top']", "description": "Meeting entry tables"},
+            {"type": "text", "pattern": r"\d{2}/\d{2}/\d{2}", "description": "Meeting dates (MM/DD/YY)"},
+        ],
+    },
 }
 
 

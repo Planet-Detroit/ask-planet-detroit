@@ -48,6 +48,8 @@ on:
           - eastpointe
           - clinton_twp_civicclerk
           - shelby_twp
+          - pontiac
+          - novi
 
 jobs:
   # --- Browser scrapers (need Playwright) ---
@@ -120,12 +122,12 @@ jobs:
 
   # --- API scrapers (no Playwright needed) ---
   api-scrapers:
-    if: github.event.inputs.scraper == 'all' || github.event.inputs.scraper == '' || contains(fromJSON('["egle","federal_register","washtenaw","oakland","macomb","livonia","canton","dearborn_heights","west_bloomfield","macomb_twp","roseville","birmingham","oak_park","romulus","harrison_twp","ypsilanti","grosse_pointe","st_clair_county","ann_arbor","dwsd","royal_oak","mi_legislature","warren","dearborn","troy","eastpointe","clinton_twp_civicclerk","shelby_twp"]'), github.event.inputs.scraper)
+    if: github.event.inputs.scraper == 'all' || github.event.inputs.scraper == '' || contains(fromJSON('["egle","federal_register","washtenaw","oakland","macomb","livonia","canton","dearborn_heights","west_bloomfield","macomb_twp","roseville","birmingham","oak_park","romulus","harrison_twp","ypsilanti","grosse_pointe","st_clair_county","ann_arbor","dwsd","royal_oak","mi_legislature","warren","dearborn","troy","eastpointe","clinton_twp_civicclerk","shelby_twp","pontiac","novi"]'), github.event.inputs.scraper)
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        scraper: [egle, federal_register, washtenaw, oakland, macomb, livonia, canton, dearborn_heights, west_bloomfield, macomb_twp, roseville, birmingham, oak_park, romulus, harrison_twp, ypsilanti, grosse_pointe, st_clair_county, ann_arbor, dwsd, royal_oak, mi_legislature, warren, dearborn, troy, eastpointe, clinton_twp_civicclerk, shelby_twp]
+        scraper: [egle, federal_register, washtenaw, oakland, macomb, livonia, canton, dearborn_heights, west_bloomfield, macomb_twp, roseville, birmingham, oak_park, romulus, harrison_twp, ypsilanti, grosse_pointe, st_clair_county, ann_arbor, dwsd, royal_oak, mi_legislature, warren, dearborn, troy, eastpointe, clinton_twp_civicclerk, shelby_twp, pontiac, novi]
 
     steps:
       - name: Check if this scraper was requested

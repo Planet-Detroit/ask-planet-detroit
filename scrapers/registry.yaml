@@ -303,6 +303,22 @@ scrapers:
     needs_browser: false
     enabled: true
 
+  pontiac:
+    name: City of Pontiac
+    module: pontiac_scraper
+    table: meetings
+    platform: revize
+    needs_browser: false
+    enabled: true
+
+  novi:
+    name: City of Novi
+    module: novi_scraper
+    table: meetings
+    platform: muniweb
+    needs_browser: false
+    enabled: true
+
   federal_register:
     name: Federal Register
     module: federal_register_scraper
