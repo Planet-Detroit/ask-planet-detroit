@@ -2,14 +2,13 @@
 Dearborn Meeting Scraper
 Scrapes City of Dearborn public meetings from their Drupal calendar.
 
-Strategy: Hit the Drupal Views AJAX endpoint to paginate through events,
-filter for "Meeting" category, and extract structured date/time from
-<time datetime=""> elements.
+Strategy: GET requests to the calendar page with pagination (?page=,,N)
+and category filter (?field_event_category_target_id=483 for meetings).
+Extracts structured date/time from <time datetime=""> elements.
 
-No API available. No Playwright needed — AJAX endpoint returns HTML in JSON.
+No API available. No Playwright needed — plain HTTP requests.
 
 Source: https://dearborn.gov/calendar
-AJAX endpoint: /views/ajax?view_name=event_schedule_tabs&view_display_id=block_1&page={N}
 """
 
 import os
@@ -31,11 +30,10 @@ SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 MICHIGAN_TZ = ZoneInfo("America/Detroit")
 
 BASE_URL = "https://dearborn.gov"
-AJAX_URL = "https://dearborn.gov/views/ajax"
-AJAX_PARAMS = {
-    "view_name": "event_schedule_tabs",
-    "view_display_id": "block_1",
-}
+CALENDAR_URL = "https://dearborn.gov/calendar"
+
+# Category filter for "Meeting" events only
+MEETING_CATEGORY_ID = "483"
 
 # Max pages to paginate through
 MAX_PAGES = 20
@@ -190,36 +188,33 @@ def parse_iso_datetime(dt_str):
         return None
 
 
-def extract_events_from_ajax(response_json):
-    """Extract the HTML content from a Drupal Views AJAX response.
-
-    Drupal returns an array of AJAX commands. We need the 'insert' command
-    that contains the rendered HTML.
-    """
-    if isinstance(response_json, list):
-        for cmd in response_json:
-            if isinstance(cmd, dict) and cmd.get("command") == "insert":
-                data = cmd.get("data", "")
-                if data and "views-row" in data:
-                    return data
-    # Fallback: if response is a dict with 'data' key
-    if isinstance(response_json, dict):
-        return response_json.get("data", "")
-    return ""
-
-
 def parse_events_html(html):
-    """Parse the events HTML and return list of event card soups."""
+    """Parse the calendar HTML page and return list of event card soups."""
     soup = BeautifulSoup(html, "html.parser")
     return soup.find_all("div", class_="views-row")
 
 
+def has_next_page(html):
+    """Check if the calendar page has a 'Show more' pagination link."""
+    soup = BeautifulSoup(html, "html.parser")
+    pager = soup.find("nav", class_="pager")
+    if pager:
+        show_more = pager.find("a", title="Go to next page")
+        return show_more is not None
+    return False
+
+
 async def fetch_events_page(client, page=0):
-    """Fetch a single page of events from the AJAX endpoint."""
-    params = {**AJAX_PARAMS, "page": str(page)}
-    resp = await client.get(AJAX_URL, params=params, timeout=30)
+    """Fetch a single page of meeting events from the calendar.
+
+    Uses ?page=,,N format (pager_element=2) and filters to meetings only.
+    """
+    params = {"field_event_category_target_id": MEETING_CATEGORY_ID}
+    if page > 0:
+        params["page"] = f",,{page}"
+    resp = await client.get(CALENDAR_URL, params=params, timeout=30)
     resp.raise_for_status()
-    return resp.json()
+    return resp.text
 
 
 def upsert_meetings(meetings):
@@ -245,6 +240,7 @@ async def main():
     print("=" * 60)
 
     meetings = []
+    seen_ids = set()
     now = datetime.now(MICHIGAN_TZ)
 
     async with httpx.AsyncClient(
@@ -254,12 +250,7 @@ async def main():
         for page in range(MAX_PAGES):
             try:
                 print(f"  Fetching page {page}...")
-                response_json = await fetch_events_page(client, page)
-                html = extract_events_from_ajax(response_json)
-
-                if not html:
-                    print(f"  No more events on page {page}, stopping")
-                    break
+                html = await fetch_events_page(client, page)
 
                 cards = parse_events_html(html)
                 if not cards:
@@ -270,6 +261,11 @@ async def main():
                 for card in cards:
                     meeting = parse_event_card(card)
                     if meeting:
+                        # Deduplicate by source_id
+                        if meeting["source_id"] in seen_ids:
+                            continue
+                        seen_ids.add(meeting["source_id"])
+
                         # Only include future meetings
                         meeting_dt = parse_iso_datetime(meeting["start_datetime"])
                         if meeting_dt and meeting_dt >= now - timedelta(days=1):
@@ -279,20 +275,10 @@ async def main():
 
                 print(f"  Page {page}: {page_count} meetings found")
 
-                # If we're getting events from far in the past, stop
-                if cards and page_count == 0:
-                    # Check if all events on this page are past
-                    all_past = True
-                    for card in cards:
-                        time_el = card.find("time", attrs={"datetime": True})
-                        if time_el:
-                            dt = parse_iso_datetime(time_el.get("datetime", ""))
-                            if dt and dt >= now:
-                                all_past = False
-                                break
-                    if all_past:
-                        print(f"  All events on page {page} are past, stopping")
-                        break
+                # Stop if no "Show more" link
+                if not has_next_page(html):
+                    print(f"  No more pages after page {page}")
+                    break
 
             except Exception as e:
                 print(f"  Error fetching page {page}: {e}")

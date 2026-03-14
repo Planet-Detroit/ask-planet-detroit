@@ -75,11 +75,12 @@ CANARY_CONFIGS = {
         ],
     },
     "dearborn": {
-        "name": "Dearborn (Drupal Views AJAX)",
-        "url": "https://dearborn.gov/calendar",
+        "name": "Dearborn (Drupal calendar)",
+        "url": "https://dearborn.gov/calendar?field_event_category_target_id=483",
         "needs_browser": False,
         "checks": [
-            {"type": "text", "pattern": "event_schedule_tabs", "description": "Drupal Views AJAX view name"},
+            {"type": "css", "selector": "div.views-row", "description": "Event card rows"},
+            {"type": "css", "selector": "div.badge", "description": "Category badge elements"},
         ],
     },
     "troy_schedule": {
