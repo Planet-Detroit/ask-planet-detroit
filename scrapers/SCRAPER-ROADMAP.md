@@ -31,11 +31,11 @@ We prioritize by **platform leverage x population coverage**:
 
 | Metric | Count |
 |--------|-------|
-| **Scrapers live** | 31 |
-| **Platforms built** | 12 (CivicClerk, Legistar HTML, Legistar API, eSCRIBE browser, eSCRIBE API, Granicus, Trumba, Federal Register API, MI Legislature RSS, WordPress sitemap, Drupal Views, Revize CMS) |
+| **Scrapers live** | 36 |
+| **Platforms built** | 14 (CivicClerk, Legistar HTML, Legistar API, eSCRIBE browser, eSCRIBE API, Granicus, Trumba, Federal Register API, MI Legislature RSS, WordPress sitemap, Drupal Views, Revize CMS, CivicPlus) |
 | **Meetings in DB** | ~450+ |
-| **Sources** | State agencies (3), regional bodies (3), counties (4), municipalities (20), federal (1) |
-| **Tests** | 405 passing |
+| **Sources** | State agencies (3), regional bodies (3), counties (4), municipalities (25), federal (1) |
+| **Tests** | 439 passing |
 
 ---
 
@@ -165,7 +165,7 @@ No API. Needs browser + FancyTree JS navigation. Meeting metadata (times, locati
 | Municipality | County | Pop. | Portal URL | Status |
 |---|---|---|---|---|
 | Southfield | Oakland | 73K | `southfieldcitymi.documents-on-demand.com` | DEFERRED |
-| Shelby Township | Macomb | 80K | `shelbytwpmi.documents-on-demand.com` | DEFERRED |
+| Shelby Township | Macomb | 80K | CivicClerk OData API | **LIVE** |
 | Independence Township | Oakland | 37K | `independencetwpmi.documents-on-demand.com` | DEFERRED |
 | + 8 more | Various | ~100K | Various | DEFERRED |
 
@@ -200,13 +200,13 @@ These need individual scrapers. Prioritized by population.
 | Dearborn | Wayne | 94K | Drupal Views AJAX | P3 | **LIVE** |
 | Troy | Oakland | 87K | Revize CMS + OnBase | P3 | **LIVE** |
 | Farmington Hills | Oakland | 83K | MuniWeb | P3 | PLANNED |
-| Clinton Township | Macomb | 101K | Laserfiche | P3 | PLANNED |
+| Clinton Township | Macomb | 101K | CivicPlus calendar + CivicClerk | P3 | **LIVE** |
 | Novi | Oakland | 61K | MuniWeb | P4 | PLANNED |
 | Pontiac | Oakland | 61K | Revize CMS | P4 | PLANNED |
 | Ypsilanti Township | Washtenaw | 55K | Custom website | P4 | PLANNED |
 | Southgate | Wayne | 29K | Granicus | P4 | RESEARCH |
 | Ferndale | Oakland | 20K | Static PDF calendar | P5 | DEFERRED (schedule-based generation possible) |
-| Eastpointe | Macomb | 32K | Custom website | P4 | PLANNED |
+| Eastpointe | Macomb | 32K | CivicClerk OData API | P4 | **LIVE** |
 | Port Huron | St. Clair | 28K | Custom website | P4 | PLANNED |
 
 ---
@@ -232,7 +232,7 @@ For cities like Ferndale with static PDF calendars, generate meetings from known
 
 | Milestone | Sources | Est. Population Covered | Platforms |
 |-----------|---------|------------------------|-----------|
-| **Current (2026-03-14)** | **31** | **~2.3M + statewide** | **12** |
+| **Current (2026-03-14)** | **36** | **~2.7M + statewide** | **14** |
 | + BoardDocs schools | 35 | ~2.3M + schools | 11 |
 | + CivicEngage (if revisited) | 50 | ~2.8M | 12 |
 | Full buildout | 60+ | ~3M+ | 12+ |
