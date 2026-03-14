@@ -253,10 +253,28 @@ scrapers:
 
   # --- CivicPlus calendar scrapers ---
   clinton_twp:
-    name: Clinton Township
+    name: Clinton Township (CivicPlus)
     module: clinton_twp_scraper
     table: meetings
     platform: civicplus
+    needs_browser: false
+    enabled: false  # Replaced by clinton_twp_civicclerk (richer data with agendas)
+
+  clinton_twp_civicclerk:
+    name: Clinton Township
+    module: civicclerk_scraper
+    config_key: clinton_twp_civicclerk
+    table: meetings
+    platform: civicclerk
+    needs_browser: false
+    enabled: true
+
+  shelby_twp:
+    name: Shelby Township
+    module: civicclerk_scraper
+    config_key: shelby_twp
+    table: meetings
+    platform: civicclerk
     needs_browser: false
     enabled: true
 
