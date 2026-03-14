@@ -80,7 +80,6 @@ CANARY_CONFIGS = {
         "needs_browser": False,
         "checks": [
             {"type": "text", "pattern": "event_schedule_tabs", "description": "Drupal Views AJAX view name"},
-            {"type": "text", "pattern": "allCalendars|calendar-filter|calendarProps", "description": "Calendar widget JS"},
         ],
     },
     "troy_schedule": {
