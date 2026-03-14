@@ -408,8 +408,10 @@ def build_meeting(event, config):
     # Location
     location = build_location_string(event.get("eventLocation"))
 
-    # Detail URL — portal event page
-    details_url = f"{config['portal_base']}/event/{event_id}"
+    # Note: CivicClerk portal event pages (portal_base/event/{id}) are React
+    # SPAs that don't render without JavaScript — useless as a details link.
+    # Only set details_url when we have an actual agenda_url to link to.
+    details_url = None
 
     # Direct agenda PDF if available
     # Use the API file stream endpoint (serves actual PDF) instead of
@@ -445,7 +447,7 @@ def build_meeting(event, config):
         "meeting_type": determine_meeting_type(event_name, category_name),
         "source": config["source"],
         "source_id": f"{county_key}-{event_id}",
-        "details_url": details_url,
+        "details_url": agenda_url,  # Use agenda as details link (portal pages are React SPAs)
         "agenda_url": agenda_url,
         "minutes_url": minutes_url,
         "virtual_url": virtual_url,
