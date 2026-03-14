@@ -6,8 +6,8 @@ from dearborn_scraper import (
     get_issue_tags,
     parse_event_card,
     parse_iso_datetime,
-    extract_events_from_ajax,
     parse_events_html,
+    has_next_page,
 )
 
 
@@ -88,29 +88,26 @@ class TestParseIsoDatetime:
         assert parse_iso_datetime("not a date") is None
 
 
-# --- extract_events_from_ajax ---
+# --- has_next_page ---
 
-class TestExtractEventsFromAjax:
-    def test_insert_command(self):
-        response = [
-            {"command": "settings", "data": {}},
-            {"command": "insert", "data": '<div class="views-row">event</div>'},
-        ]
-        html = extract_events_from_ajax(response)
-        assert "views-row" in html
+class TestHasNextPage:
+    def test_with_show_more(self):
+        html = '''
+        <nav class="pager">
+            <ul class="pager__items pager-show-more">
+                <li><a href="?page=%2C%2C1" title="Go to next page">Show more</a></li>
+            </ul>
+        </nav>
+        '''
+        assert has_next_page(html) is True
 
-    def test_no_insert(self):
-        response = [{"command": "settings", "data": {}}]
-        html = extract_events_from_ajax(response)
-        assert html == ""
+    def test_without_pager(self):
+        html = '<div>No pager here</div>'
+        assert has_next_page(html) is False
 
-    def test_dict_fallback(self):
-        response = {"data": '<div class="views-row">event</div>'}
-        html = extract_events_from_ajax(response)
-        assert "views-row" in html
-
-    def test_empty_list(self):
-        assert extract_events_from_ajax([]) == ""
+    def test_pager_no_link(self):
+        html = '<nav class="pager"><ul></ul></nav>'
+        assert has_next_page(html) is False
 
 
 # --- parse_events_html ---
@@ -307,14 +304,9 @@ class TestParseEventCard:
 # --- Integration ---
 
 class TestIntegration:
-    def test_ajax_to_meeting(self):
-        """Test full flow: AJAX response → extract HTML → parse cards → meetings."""
-        ajax_response = [
-            {"command": "settings", "data": {}},
-            {"command": "insert", "data": SAMPLE_MEETING_CARD},
-        ]
-        html = extract_events_from_ajax(ajax_response)
-        cards = parse_events_html(html)
+    def test_html_to_meeting(self):
+        """Test full flow: HTML page → parse cards → meetings."""
+        cards = parse_events_html(SAMPLE_MEETING_CARD)
         assert len(cards) == 1
 
         meeting = parse_event_card(cards[0])
