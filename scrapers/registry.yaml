@@ -327,6 +327,34 @@ scrapers:
     needs_browser: false
     enabled: true
 
+  # --- CivicPlus AgendaCenter municipalities ---
+  sterling_heights:
+    name: City of Sterling Heights
+    module: civicplus_agenda_scraper
+    config_key: sterling_heights
+    table: meetings
+    platform: civicplus_agenda
+    needs_browser: false
+    enabled: true
+
+  westland:
+    name: City of Westland
+    module: civicplus_agenda_scraper
+    config_key: westland
+    table: meetings
+    platform: civicplus_agenda
+    needs_browser: false
+    enabled: true
+
+  waterford:
+    name: Waterford Township
+    module: civicplus_agenda_scraper
+    config_key: waterford
+    table: meetings
+    platform: civicplus_agenda
+    needs_browser: false
+    enabled: true
+
   federal_register:
     name: Federal Register
     module: federal_register_scraper
