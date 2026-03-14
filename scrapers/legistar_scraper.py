@@ -201,7 +201,7 @@ def build_meeting(event, config):
 
     # Agenda and minutes PDFs (direct from API)
     agenda_url = event.get("EventAgendaFile")
-    # minutes_url = event.get("EventMinutesFile")  # Column not yet in Supabase
+    minutes_url = event.get("EventMinutesFile")
 
     # Detail page on Legistar InSite portal
     details_url = event.get("EventInSiteURL", "")
@@ -224,6 +224,7 @@ def build_meeting(event, config):
         "source_id": generate_source_id(client, event_id),
         "details_url": details_url,
         "agenda_url": agenda_url,
+        "minutes_url": minutes_url,
         "virtual_url": virtual_url,
         "virtual_meeting_id": meeting_id,
         "virtual_phone": dial_in,

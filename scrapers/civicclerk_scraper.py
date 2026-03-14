@@ -391,14 +391,14 @@ def build_meeting(event, config):
                 agenda_url = f"{config['portal_base']}/{relative_url}"
             break
 
-    # Minutes PDF if available (minutes_url column not yet in Supabase — extract but don't include in upsert)
-    # minutes_url = None
-    # for f in published_files:
-    #     if f.get("fileType") == 4 or f.get("type") == "Minutes":
-    #         relative_url = f.get("url", "")
-    #         if relative_url:
-    #             minutes_url = f"{config['portal_base']}/{relative_url}"
-    #         break
+    # Minutes PDF if available
+    minutes_url = None
+    for f in published_files:
+        if f.get("fileType") == 4 or f.get("type") == "Minutes":
+            relative_url = f.get("url", "")
+            if relative_url:
+                minutes_url = f"{config['portal_base']}/{relative_url}"
+            break
 
     # County-specific source key (e.g., "washtenaw" from "washtenaw_scraper")
     county_key = config["source"].replace("_scraper", "")
@@ -415,6 +415,7 @@ def build_meeting(event, config):
         "source_id": f"{county_key}-{event_id}",
         "details_url": details_url,
         "agenda_url": agenda_url,
+        "minutes_url": minutes_url,
         "virtual_url": virtual_url,
         "virtual_meeting_id": zoom_id,
         "virtual_phone": dial_in,

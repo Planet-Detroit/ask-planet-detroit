@@ -232,7 +232,7 @@ async def scrape_glwa_meetings():
                     "status": "upcoming",
                     "details_url": detail_url,
                     "agenda_url": agenda_url,
-                    # "minutes_url": minutes_url,  # Column not yet in Supabase
+                    "minutes_url": minutes_url,
                 }
 
                 meetings.append(meeting)
