@@ -71,7 +71,7 @@ Building one scraper per platform maximizes coverage. This is the priority order
 |-----------|--------|-----------|
 | Per-run RESULT status | **LIVE** | Every scraper run (daily) |
 | Weekly health digest | **LIVE** | Monday 9 AM EST (Slack + GitHub Actions) |
-| DOM canary checks | PLANNED | Per-run for HTML scrapers |
+| DOM canary checks | **LIVE** | Weekly (Monday 9 AM EST) |
 | Monthly coverage audit | PLANNED | Manual review of weekly digests |
 
 ---
