@@ -193,7 +193,7 @@ class TestBuildMeeting:
         assert meeting["virtual_url"] == "https://us02web.zoom.us/j/88341991916?pwd=abc"
         assert meeting["virtual_meeting_id"] == "88341991916"
         assert "Ypsilanti" in meeting["location"]
-        assert meeting["agenda_url"].endswith("abc123.pdf")
+        assert "GetMeetingFileStream(fileId=9059" in meeting["agenda_url"]
         assert "pfas" in meeting["issue_tags"]
         assert meeting["region"] == "Washtenaw County"
 

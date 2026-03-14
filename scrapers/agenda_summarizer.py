@@ -49,18 +49,26 @@ def fetch_agenda_text(url):
         return None
 
     try:
-        resp = httpx.get(url, follow_redirects=True, timeout=30)
+        # Some eSCRIBE sites have Cloudflare certs that Python can't verify locally
+        resp = httpx.get(url, follow_redirects=True, timeout=30, verify=False)
         if resp.status_code != 200:
             print(f"    Agenda fetch failed: {resp.status_code} for {url[:80]}")
             return None
 
         content_type = resp.headers.get("content-type", "").lower()
 
-        # PDF detection: check content-type or URL extension
-        if "application/pdf" in content_type or url.lower().endswith(".pdf"):
+        # PDF detection: prioritize content-type over URL extension
+        # (some URLs end in .pdf but return HTML, e.g. CivicClerk portal SPA)
+        if "application/pdf" in content_type:
+            return _extract_pdf_text(resp.content)
+        if "text/html" in content_type:
+            return _extract_html_text(resp.text)
+
+        # Fallback: trust URL extension if content-type is ambiguous
+        if url.lower().endswith(".pdf"):
             return _extract_pdf_text(resp.content)
 
-        # HTML fallback
+        # Default to HTML
         return _extract_html_text(resp.text)
 
     except Exception as e:

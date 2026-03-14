@@ -412,22 +412,24 @@ def build_meeting(event, config):
     details_url = f"{config['portal_base']}/event/{event_id}"
 
     # Direct agenda PDF if available
+    # Use the API file stream endpoint (serves actual PDF) instead of
+    # the portal URL (React SPA that returns HTML, not the PDF itself)
     agenda_url = None
     published_files = event.get("publishedFiles", [])
     for f in published_files:
         if f.get("fileType") == 1 or f.get("type") == "Agenda":
-            relative_url = f.get("url", "")
-            if relative_url:
-                agenda_url = f"{config['portal_base']}/{relative_url}"
+            file_id = f.get("fileId")
+            if file_id:
+                agenda_url = f"{config['api_base']}/Meetings/GetMeetingFileStream(fileId={file_id},plainText=false)"
             break
 
     # Minutes PDF if available
     minutes_url = None
     for f in published_files:
         if f.get("fileType") == 4 or f.get("type") == "Minutes":
-            relative_url = f.get("url", "")
-            if relative_url:
-                minutes_url = f"{config['portal_base']}/{relative_url}"
+            file_id = f.get("fileId")
+            if file_id:
+                minutes_url = f"{config['api_base']}/Meetings/GetMeetingFileStream(fileId={file_id},plainText=false)"
             break
 
     # County-specific source key (e.g., "washtenaw" from "washtenaw_scraper")
