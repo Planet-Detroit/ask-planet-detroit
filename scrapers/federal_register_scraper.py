@@ -203,10 +203,10 @@ def fetch_comment_periods():
         time.sleep(1)  # Rate limit: be polite to the API
 
     # Strategy 2: Search by Michigan keywords directly
-    # These keywords are inherently Michigan-relevant, so we trust the API's
-    # full-text search and skip our own relevance filter here.
+    # Still apply Michigan relevance filter — the API's full-text search is
+    # too loose and returns documents that mention keywords in passing.
     print(f"\n  Searching by keywords...")
-    for keyword in ["Michigan environment", "Great Lakes", "PFAS", "Line 5"]:
+    for keyword in ["Michigan environment", "Great Lakes water", "PFAS contamination", "Line 5 pipeline"]:
         params = {
             "conditions[term]": keyword,
             "conditions[type][]": ["NOTICE", "PROPOSED_RULE"],
@@ -226,11 +226,13 @@ def fetch_comment_periods():
                 docs = resp.json().get("results", [])
                 added = 0
                 for doc in docs:
-                    # Deduplicate by document_number
+                    # Must pass Michigan relevance check AND not be a duplicate
+                    if not is_michigan_relevant(doc):
+                        continue
                     if not any(r.get("document_number") == doc.get("document_number") for r in all_results):
                         all_results.append(doc)
                         added += 1
-                print(f"    '{keyword}': {len(docs)} docs, {added} new")
+                print(f"    '{keyword}': {len(docs)} docs, {added} Michigan-relevant & new")
         except Exception as e:
             print(f"    Error searching '{keyword}': {e}")
 

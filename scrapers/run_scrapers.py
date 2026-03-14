@@ -162,7 +162,11 @@ async def run_scraper(key, config):
 
     try:
         mod = importlib.import_module(module_name)
-        results = await mod.main()
+        config_key = config.get("config_key")
+        if config_key:
+            results = await mod.main(config_key)
+        else:
+            results = await mod.main()
         return key, results or [], None
     except Exception as e:
         print(f"ERROR running {name}: {e}")

@@ -7,14 +7,14 @@ No authentication required. No browser needed.
 """
 
 from scraper_utils import print_result
-from civicclerk_scraper import scrape_county
+from civicclerk_scraper import scrape_source
 
 COUNTY_KEY = "macomb"
 
 
 async def main():
     """Main entry point."""
-    meetings = await scrape_county(COUNTY_KEY)
+    meetings = await scrape_source(COUNTY_KEY)
     print_result(COUNTY_KEY, "ok", len(meetings), "meetings")
     return meetings
 

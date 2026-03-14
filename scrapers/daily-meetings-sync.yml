@@ -25,6 +25,19 @@ on:
           - macomb
           - wayne_county
           - federal_register
+          - livonia
+          - canton
+          - dearborn_heights
+          - west_bloomfield
+          - macomb_twp
+          - roseville
+          - birmingham
+          - oak_park
+          - romulus
+          - harrison_twp
+          - ypsilanti
+          - grosse_pointe
+          - st_clair_county
 
 jobs:
   # --- Browser scrapers (need Playwright) ---
@@ -97,12 +110,12 @@ jobs:
 
   # --- API scrapers (no Playwright needed) ---
   api-scrapers:
-    if: github.event.inputs.scraper == 'all' || github.event.inputs.scraper == '' || contains(fromJSON('["egle","federal_register","washtenaw","oakland","macomb"]'), github.event.inputs.scraper)
+    if: github.event.inputs.scraper == 'all' || github.event.inputs.scraper == '' || contains(fromJSON('["egle","federal_register","washtenaw","oakland","macomb","livonia","canton","dearborn_heights","west_bloomfield","macomb_twp","roseville","birmingham","oak_park","romulus","harrison_twp","ypsilanti","grosse_pointe","st_clair_county"]'), github.event.inputs.scraper)
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        scraper: [egle, federal_register, washtenaw, oakland, macomb]
+        scraper: [egle, federal_register, washtenaw, oakland, macomb, livonia, canton, dearborn_heights, west_bloomfield, macomb_twp, roseville, birmingham, oak_park, romulus, harrison_twp, ypsilanti, grosse_pointe, st_clair_county]
 
     steps:
       - name: Check if this scraper was requested

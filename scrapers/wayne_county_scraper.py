@@ -498,7 +498,7 @@ async def scrape_wayne_county_meetings():
                 "source_id": generate_source_id(title, date_str),
                 "details_url": detail_url,
                 "agenda_url": detail.get('agenda_url'),
-                "minutes_url": detail.get('minutes_url'),
+                # "minutes_url": detail.get('minutes_url'),  # Column not yet in Supabase
                 "virtual_url": detail.get('virtual_url'),
                 "virtual_meeting_id": detail.get('virtual_meeting_id'),
                 "virtual_phone": detail.get('virtual_phone'),

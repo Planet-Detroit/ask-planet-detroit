@@ -7,7 +7,7 @@ No authentication required. No browser needed.
 """
 
 from scraper_utils import print_result
-from civicclerk_scraper import scrape_county, COUNTY_CONFIGS
+from civicclerk_scraper import scrape_source, CIVICCLERK_CONFIGS
 
 # Re-export parsing functions so existing tests keep working
 from civicclerk_scraper import (
@@ -22,12 +22,12 @@ from civicclerk_scraper import (
 )
 
 COUNTY_KEY = "washtenaw"
-DEFAULT_ISSUE_TAGS = COUNTY_CONFIGS[COUNTY_KEY]["default_tags"]
+DEFAULT_ISSUE_TAGS = CIVICCLERK_CONFIGS[COUNTY_KEY]["default_tags"]
 
 
 async def main():
     """Main entry point."""
-    meetings = await scrape_county(COUNTY_KEY)
+    meetings = await scrape_source(COUNTY_KEY)
     print_result(COUNTY_KEY, "ok", len(meetings), "meetings")
     return meetings
 

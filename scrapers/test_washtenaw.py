@@ -16,11 +16,11 @@ from civicclerk_scraper import (
     determine_meeting_type,
     determine_format,
     build_meeting,
-    COUNTY_CONFIGS,
+    CIVICCLERK_CONFIGS,
 )
 
 # Use Washtenaw config for tests
-TEST_CONFIG = COUNTY_CONFIGS["washtenaw"]
+TEST_CONFIG = CIVICCLERK_CONFIGS["washtenaw"]
 DEFAULT_ISSUE_TAGS = TEST_CONFIG["default_tags"]
 
 

@@ -29,9 +29,9 @@ MICHIGAN_TZ = ZoneInfo("America/Detroit")
 LOOKAHEAD_DAYS = 90
 
 
-# --- County configurations ---
+# --- CivicClerk configurations (counties and municipalities) ---
 
-COUNTY_CONFIGS = {
+CIVICCLERK_CONFIGS = {
     "washtenaw": {
         "name": "Washtenaw County",
         "api_base": "https://washtenawcomi.api.civicclerk.com/v1",
@@ -82,6 +82,148 @@ COUNTY_CONFIGS = {
             64: ["environment", "infrastructure"],             # Solid Waste Planning
         },
         "default_tags": ["government", "macomb_county"],
+    },
+    # --- Municipalities ---
+    "livonia": {
+        "name": "City of Livonia",
+        "api_base": "https://livoniami.api.civicclerk.com/v1",
+        "portal_base": "https://livoniami.portal.civicclerk.com",
+        "site_key": "LIVONIAMI",
+        "region": "Wayne County",
+        "source": "livonia_scraper",
+        "env_categories": {},
+        "default_tags": ["government", "livonia"],
+    },
+    "canton": {
+        "name": "Canton Township",
+        "api_base": "https://cantonchartertwpmi.api.civicclerk.com/v1",
+        "portal_base": "https://cantonchartertwpmi.portal.civicclerk.com",
+        "site_key": "CANTONCHARTERTWPMI",
+        "region": "Wayne County",
+        "source": "canton_scraper",
+        "env_categories": {},
+        "default_tags": ["government", "canton"],
+    },
+    "dearborn_heights": {
+        "name": "City of Dearborn Heights",
+        "api_base": "https://dearbornheightsmi.api.civicclerk.com/v1",
+        "portal_base": "https://dearbornheightsmi.portal.civicclerk.com",
+        "site_key": "DEARBORNHEIGHTSMI",
+        "region": "Wayne County",
+        "source": "dearborn_heights_scraper",
+        "env_categories": {},
+        "default_tags": ["government", "dearborn_heights"],
+    },
+    "west_bloomfield": {
+        "name": "West Bloomfield Township",
+        "api_base": "https://wbtownshipmi.api.civicclerk.com/v1",
+        "portal_base": "https://wbtownshipmi.portal.civicclerk.com",
+        "site_key": "WBTOWNSHIPMI",
+        "region": "Oakland County",
+        "source": "west_bloomfield_scraper",
+        "env_categories": {
+            27: ["environment"],                                 # Environmental Commission
+        },
+        "default_tags": ["government", "west_bloomfield"],
+    },
+    "macomb_twp": {
+        "name": "Macomb Township",
+        "api_base": "https://macombtwpmi.api.civicclerk.com/v1",
+        "portal_base": "https://macombtwpmi.portal.civicclerk.com",
+        "site_key": "MACOMBTWPMI",
+        "region": "Macomb County",
+        "source": "macomb_twp_scraper",
+        "env_categories": {},
+        "default_tags": ["government", "macomb_township"],
+    },
+    "roseville": {
+        "name": "City of Roseville",
+        "api_base": "https://rosevillemi.api.civicclerk.com/v1",
+        "portal_base": "https://rosevillemi.portal.civicclerk.com",
+        "site_key": "ROSEVILLEMI",
+        "region": "Macomb County",
+        "source": "roseville_scraper",
+        "env_categories": {},
+        "default_tags": ["government", "roseville"],
+    },
+    "birmingham": {
+        "name": "City of Birmingham",
+        "api_base": "https://birminghammi.api.civicclerk.com/v1",
+        "portal_base": "https://birminghammi.portal.civicclerk.com",
+        "site_key": "BIRMINGHAMMI",
+        "region": "Oakland County",
+        "source": "birmingham_scraper",
+        "env_categories": {
+            33: ["parks", "environment"],                        # Parks and Recreation Board
+        },
+        "default_tags": ["government", "birmingham"],
+    },
+    "oak_park": {
+        "name": "City of Oak Park",
+        "api_base": "https://oakparkmi.api.civicclerk.com/v1",
+        "portal_base": "https://oakparkmi.portal.civicclerk.com",
+        "site_key": "OAKPARKMI",
+        "region": "Oakland County",
+        "source": "oak_park_scraper",
+        "env_categories": {
+            40: ["environment", "recycling"],                    # Recycling and Environmental Conservation
+            37: ["parks", "environment"],                        # Parks and Recreation Commission
+        },
+        "default_tags": ["government", "oak_park"],
+    },
+    "romulus": {
+        "name": "City of Romulus",
+        "api_base": "https://romulusmi.api.civicclerk.com/v1",
+        "portal_base": "https://romulusmi.portal.civicclerk.com",
+        "site_key": "ROMULUSMI",
+        "region": "Wayne County",
+        "source": "romulus_scraper",
+        "env_categories": {},
+        "default_tags": ["government", "romulus"],
+    },
+    "harrison_twp": {
+        "name": "Harrison Township",
+        "api_base": "https://harrisontownshipmi.api.civicclerk.com/v1",
+        "portal_base": "https://harrisontownshipmi.portal.civicclerk.com",
+        "site_key": "HARRISONTOWNSHIPMI",
+        "region": "Macomb County",
+        "source": "harrison_twp_scraper",
+        "env_categories": {},
+        "default_tags": ["government", "harrison_township"],
+    },
+    "ypsilanti": {
+        "name": "City of Ypsilanti",
+        "api_base": "https://ypsilantimi.api.civicclerk.com/v1",
+        "portal_base": "https://ypsilantimi.portal.civicclerk.com",
+        "site_key": "YPSILANTIMI",
+        "region": "Washtenaw County",
+        "source": "ypsilanti_scraper",
+        "env_categories": {},
+        "default_tags": ["government", "ypsilanti"],
+    },
+    "grosse_pointe": {
+        "name": "City of Grosse Pointe",
+        "api_base": "https://grossepointemi.api.civicclerk.com/v1",
+        "portal_base": "https://grossepointemi.portal.civicclerk.com",
+        "site_key": "GROSSEPOINTEMI",
+        "region": "Wayne County",
+        "source": "grosse_pointe_scraper",
+        "env_categories": {
+            32: ["environment"],                                 # Beautification Commission
+        },
+        "default_tags": ["government", "grosse_pointe"],
+    },
+    "st_clair_county": {
+        "name": "St. Clair County",
+        "api_base": "https://stclaircomi.api.civicclerk.com/v1",
+        "portal_base": "https://stclaircomi.portal.civicclerk.com",
+        "site_key": "STCLAIRCOMI",
+        "region": "St. Clair County",
+        "source": "st_clair_county_scraper",
+        "env_categories": {
+            30: ["environment", "infrastructure"],               # Environmental/Public Works
+        },
+        "default_tags": ["government", "st_clair_county"],
     },
 }
 
@@ -249,14 +391,14 @@ def build_meeting(event, config):
                 agenda_url = f"{config['portal_base']}/{relative_url}"
             break
 
-    # Minutes PDF if available
-    minutes_url = None
-    for f in published_files:
-        if f.get("fileType") == 4 or f.get("type") == "Minutes":
-            relative_url = f.get("url", "")
-            if relative_url:
-                minutes_url = f"{config['portal_base']}/{relative_url}"
-            break
+    # Minutes PDF if available (minutes_url column not yet in Supabase — extract but don't include in upsert)
+    # minutes_url = None
+    # for f in published_files:
+    #     if f.get("fileType") == 4 or f.get("type") == "Minutes":
+    #         relative_url = f.get("url", "")
+    #         if relative_url:
+    #             minutes_url = f"{config['portal_base']}/{relative_url}"
+    #         break
 
     # County-specific source key (e.g., "washtenaw" from "washtenaw_scraper")
     county_key = config["source"].replace("_scraper", "")
@@ -273,7 +415,6 @@ def build_meeting(event, config):
         "source_id": f"{county_key}-{event_id}",
         "details_url": details_url,
         "agenda_url": agenda_url,
-        "minutes_url": minutes_url,
         "virtual_url": virtual_url,
         "virtual_meeting_id": zoom_id,
         "virtual_phone": dial_in,
@@ -300,9 +441,9 @@ def upsert_meetings(meetings):
             print(f"  Error upserting {meeting['title'][:30]}: {e}")
 
 
-async def scrape_county(county_key):
-    """Scrape meetings for a single county. Returns list of meeting dicts."""
-    config = COUNTY_CONFIGS[county_key]
+async def scrape_source(key):
+    """Scrape meetings for a single CivicClerk source. Returns list of meeting dicts."""
+    config = CIVICCLERK_CONFIGS[key]
 
     print("=" * 60)
     print(f"{config['name']} Meeting Scraper (CivicClerk API)")
@@ -327,4 +468,10 @@ async def scrape_county(county_key):
         upsert_meetings(meetings)
 
     print("\nDone!")
+    print_result(key, "ok", len(meetings), "meetings")
     return meetings
+
+
+async def main(key):
+    """Main entry point — called by run_scrapers.py with config_key from registry."""
+    return await scrape_source(key)
