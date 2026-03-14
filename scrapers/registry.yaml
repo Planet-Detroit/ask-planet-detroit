@@ -242,6 +242,31 @@ scrapers:
     needs_browser: false
     enabled: true
 
+  # --- Custom HTML scrapers (no browser needed) ---
+  warren:
+    name: City of Warren
+    module: warren_scraper
+    table: meetings
+    platform: wordpress
+    needs_browser: false
+    enabled: true
+
+  troy:
+    name: City of Troy
+    module: troy_scraper
+    table: meetings
+    platform: revize
+    needs_browser: false
+    enabled: true
+
+  dearborn:
+    name: City of Dearborn
+    module: dearborn_scraper
+    table: meetings
+    platform: drupal
+    needs_browser: false
+    enabled: true
+
   federal_register:
     name: Federal Register
     module: federal_register_scraper

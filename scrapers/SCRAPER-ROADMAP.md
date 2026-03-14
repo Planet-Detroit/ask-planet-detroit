@@ -31,11 +31,11 @@ We prioritize by **platform leverage x population coverage**:
 
 | Metric | Count |
 |--------|-------|
-| **Scrapers live** | 28 |
-| **Platforms built** | 9 (CivicClerk, Legistar HTML, Legistar API, eSCRIBE browser, eSCRIBE API, Granicus, Trumba, Federal Register API, MI Legislature RSS) |
+| **Scrapers live** | 31 |
+| **Platforms built** | 12 (CivicClerk, Legistar HTML, Legistar API, eSCRIBE browser, eSCRIBE API, Granicus, Trumba, Federal Register API, MI Legislature RSS, WordPress sitemap, Drupal Views, Revize CMS) |
 | **Meetings in DB** | ~450+ |
-| **Sources** | State agencies (3), regional bodies (3), counties (4), municipalities (17), federal (1) |
-| **Tests** | 274 passing |
+| **Sources** | State agencies (3), regional bodies (3), counties (4), municipalities (20), federal (1) |
+| **Tests** | 405 passing |
 
 ---
 
@@ -196,9 +196,9 @@ These need individual scrapers. Prioritized by population.
 
 | Municipality | County | Pop. | Platform | Priority | Status |
 |---|---|---|---|---|---|
-| Warren | Macomb | 139K | Custom website | P3 | PLANNED |
-| Dearborn | Wayne | 94K | Drupal CMS | P3 | PLANNED |
-| Troy | Oakland | 87K | Custom web app | P3 | PLANNED |
+| Warren | Macomb | 139K | WordPress (sitemap + detail pages) | P3 | **LIVE** |
+| Dearborn | Wayne | 94K | Drupal Views AJAX | P3 | **LIVE** |
+| Troy | Oakland | 87K | Revize CMS + OnBase | P3 | **LIVE** |
 | Farmington Hills | Oakland | 83K | MuniWeb | P3 | PLANNED |
 | Clinton Township | Macomb | 101K | Laserfiche | P3 | PLANNED |
 | Novi | Oakland | 61K | MuniWeb | P4 | PLANNED |
@@ -232,8 +232,7 @@ For cities like Ferndale with static PDF calendars, generate meetings from known
 
 | Milestone | Sources | Est. Population Covered | Platforms |
 |-----------|---------|------------------------|-----------|
-| **Current (2026-03-14)** | **28** | **~2.0M + statewide** | **9** |
-| + Warren/Dearborn/Troy | 31 | ~2.3M | 9-10 |
+| **Current (2026-03-14)** | **31** | **~2.3M + statewide** | **12** |
 | + BoardDocs schools | 35 | ~2.3M + schools | 11 |
 | + CivicEngage (if revisited) | 50 | ~2.8M | 12 |
 | Full buildout | 60+ | ~3M+ | 12+ |
