@@ -86,6 +86,20 @@ class TestFetchAgendaText:
         assert result is None  # Invalid PDF returns None
 
     @patch("agenda_summarizer.httpx")
+    def test_html_response_to_pdf_url_treated_as_html(self, mock_httpx):
+        """CivicClerk portal URLs end in .pdf but return HTML (React SPA).
+        Content-type should take priority over URL extension."""
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.headers = {"content-type": "text/html; charset=utf-8"}
+        mock_resp.text = '<html><body><noscript>You need to enable JavaScript</noscript><div id="root"></div></body></html>'
+        mock_httpx.get.return_value = mock_resp
+
+        # Should detect HTML content-type and NOT try to parse as PDF
+        result = fetch_agenda_text("https://portal.civicclerk.com/stream/SITE/file.pdf")
+        assert result is None  # SPA shell has too little text
+
+    @patch("agenda_summarizer.httpx")
     def test_detects_pdf_by_content_type(self, mock_httpx):
         mock_resp = MagicMock()
         mock_resp.status_code = 200
