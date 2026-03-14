@@ -242,6 +242,15 @@ scrapers:
     needs_browser: false
     enabled: true
 
+  # --- WordPress custom scrapers ---
+  warren:
+    name: City of Warren
+    module: warren_scraper
+    table: meetings
+    platform: wordpress
+    needs_browser: false
+    enabled: true
+
   federal_register:
     name: Federal Register
     module: federal_register_scraper
