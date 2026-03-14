@@ -204,6 +204,25 @@ scrapers:
     needs_browser: true
     enabled: true
 
+  # --- Legistar API municipalities (no browser, shared module) ---
+  ann_arbor:
+    name: City of Ann Arbor
+    module: legistar_scraper
+    config_key: ann_arbor
+    table: meetings
+    platform: legistar_api
+    needs_browser: false
+    enabled: true
+
+  dwsd:
+    name: DWSD
+    module: legistar_scraper
+    config_key: dwsd
+    table: meetings
+    platform: legistar_api
+    needs_browser: false
+    enabled: true
+
   federal_register:
     name: Federal Register
     module: federal_register_scraper
