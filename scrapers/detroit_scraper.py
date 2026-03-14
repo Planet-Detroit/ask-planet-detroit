@@ -13,6 +13,8 @@ Strategy:
 import asyncio
 import hashlib
 import re
+
+from scraper_utils import print_result
 import os
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
@@ -495,8 +497,13 @@ async def main():
         print("No meetings found.")
 
     print("\nDone!")
+    print_result("detroit", "ok", len(meetings), "meetings")
     return meetings
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except Exception as e:
+        print_result("detroit", "error", error=str(e))
+        raise

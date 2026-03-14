@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Detroit Meeting Agendas - Planet Detroit</title>
+  <title>Metro Detroit Civic Data — Planet Detroit</title>
   <style>
     :root {
       --pd-green: #2d6a4f;
@@ -14,6 +14,7 @@
       --pd-text-light: #6c757d;
       --pd-border: #dee2e6;
       --pd-tag-bg: #e9ecef;
+      --pd-accent: #e76f51;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -32,23 +33,219 @@
       text-align: center;
     }
 
-    header h1 {
-      font-size: 1.5rem;
-      font-weight: 700;
-      margin-bottom: 0.25rem;
+    header h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.25rem; }
+    header p { font-size: 0.9rem; opacity: 0.85; }
+
+    .container { max-width: 900px; margin: 0 auto; padding: 1.5rem 1rem; }
+
+    /* Tabs */
+    .tabs {
+      display: flex;
+      gap: 0;
+      border-bottom: 2px solid var(--pd-border);
+      margin-bottom: 1.5rem;
     }
 
-    header p {
+    .tab {
+      padding: 0.75rem 1.25rem;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      background: none;
+      color: var(--pd-text-light);
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      transition: all 0.15s;
+    }
+
+    .tab:hover { color: var(--pd-text); }
+    .tab.active { color: var(--pd-green); border-bottom-color: var(--pd-green); }
+
+    .tab-count {
+      display: inline-block;
+      background: var(--pd-tag-bg);
+      font-size: 0.75rem;
+      padding: 0.1rem 0.5rem;
+      border-radius: 10px;
+      margin-left: 0.4rem;
+      font-weight: 500;
+    }
+
+    .tab.active .tab-count { background: var(--pd-green); color: white; }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* Filters */
+    .filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-bottom: 1.25rem;
+      align-items: center;
+    }
+
+    .filter-btn {
+      padding: 0.35rem 0.75rem;
+      font-size: 0.8rem;
+      border: 1px solid var(--pd-border);
+      border-radius: 100px;
+      background: white;
+      color: var(--pd-text);
+      cursor: pointer;
+      font-weight: 500;
+      transition: all 0.15s;
+    }
+
+    .filter-btn:hover { border-color: var(--pd-green); color: var(--pd-green); }
+    .filter-btn.active { background: var(--pd-green); color: white; border-color: var(--pd-green); }
+
+    .filter-label {
+      font-size: 0.8rem;
+      color: var(--pd-text-light);
+      font-weight: 600;
+      margin-right: 0.25rem;
+    }
+
+    /* Cards */
+    .card {
+      background: var(--pd-card);
+      border: 1px solid var(--pd-border);
+      border-radius: 8px;
+      margin-bottom: 0.75rem;
+      overflow: hidden;
+      transition: box-shadow 0.15s;
+    }
+
+    .card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+
+    .card-header {
+      padding: 1rem 1.25rem;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 1rem;
+    }
+
+    .card-header:hover { background: #f8f9fa; }
+
+    .card-title { font-size: 1rem; font-weight: 600; margin-bottom: 0.2rem; }
+
+    .card-subtitle {
+      font-size: 0.85rem;
+      color: var(--pd-text-light);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: center;
+    }
+
+    .card-subtitle .separator { color: var(--pd-border); }
+
+    .source-badge {
+      display: inline-block;
+      font-size: 0.7rem;
+      padding: 0.1rem 0.5rem;
+      border-radius: 3px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .source-badge.detroit { background: #dbeafe; color: #1e40af; }
+    .source-badge.glwa { background: #d1fae5; color: #065f46; }
+    .source-badge.mpsc { background: #fef3c7; color: #92400e; }
+    .source-badge.egle { background: #ede9fe; color: #5b21b6; }
+    .source-badge.washtenaw { background: #fce7f3; color: #9d174d; }
+    .source-badge.oakland { background: #e0e7ff; color: #3730a3; }
+    .source-badge.macomb { background: #ccfbf1; color: #134e4a; }
+    .source-badge.wayne { background: #fee2e2; color: #991b1b; }
+    .source-badge.federal { background: #f3f4f6; color: #374151; }
+
+    .format-badge {
+      display: inline-block;
+      font-size: 0.7rem;
+      padding: 0.1rem 0.45rem;
+      border-radius: 3px;
+      font-weight: 500;
+    }
+
+    .format-badge.virtual { background: #dbeafe; color: #1e40af; }
+    .format-badge.hybrid { background: #d1fae5; color: #065f46; }
+
+    .toggle-icon {
+      flex-shrink: 0;
+      font-size: 1rem;
+      color: var(--pd-text-light);
+      transition: transform 0.2s;
+    }
+
+    .toggle-icon.open { transform: rotate(180deg); }
+
+    .card-detail {
+      display: none;
+      border-top: 1px solid var(--pd-border);
+      padding: 1rem 1.25rem;
+      background: #fafafa;
       font-size: 0.9rem;
-      opacity: 0.85;
     }
 
-    .container {
-      max-width: 720px;
-      margin: 0 auto;
-      padding: 1.5rem 1rem;
+    .card-detail.open { display: block; }
+
+    .detail-grid {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 0.4rem 1rem;
+      margin-bottom: 0.75rem;
     }
 
+    .detail-label {
+      font-weight: 600;
+      color: var(--pd-text-light);
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .detail-value { font-size: 0.9rem; }
+    .detail-value a { color: var(--pd-green); text-decoration: none; font-weight: 500; }
+    .detail-value a:hover { text-decoration: underline; }
+
+    .tag-list { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.5rem; }
+
+    .tag {
+      background: var(--pd-tag-bg);
+      color: var(--pd-text);
+      font-size: 0.7rem;
+      padding: 0.15rem 0.5rem;
+      border-radius: 100px;
+      font-weight: 500;
+    }
+
+    /* Comment period specific */
+    .days-badge {
+      display: inline-block;
+      font-size: 0.75rem;
+      padding: 0.15rem 0.5rem;
+      border-radius: 3px;
+      font-weight: 600;
+    }
+
+    .days-badge.urgent { background: #fee2e2; color: #991b1b; }
+    .days-badge.soon { background: #fef3c7; color: #92400e; }
+    .days-badge.plenty { background: #d1fae5; color: #065f46; }
+
+    /* Summary section */
+    .card-summary {
+      padding: 0 1.25rem 0.75rem;
+      font-size: 0.9rem;
+      color: var(--pd-text);
+      line-height: 1.6;
+    }
+
+    /* States */
     .loading {
       text-align: center;
       padding: 3rem;
@@ -71,117 +268,24 @@
 
     .empty {
       text-align: center;
-      padding: 3rem 1rem;
+      padding: 2rem 1rem;
       color: var(--pd-text-light);
     }
 
-    .empty h2 {
-      font-size: 1.2rem;
-      margin-bottom: 0.5rem;
-      color: var(--pd-text);
-    }
+    .error { text-align: center; padding: 2rem; color: #dc3545; }
 
-    .card {
-      background: var(--pd-card);
-      border: 1px solid var(--pd-border);
-      border-radius: 8px;
-      margin-bottom: 1rem;
-      overflow: hidden;
-    }
-
-    .card-header {
-      padding: 1rem 1.25rem;
-      cursor: pointer;
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 1rem;
-    }
-
-    .card-header:hover {
-      background: #f8f9fa;
-    }
-
-    .card-title {
-      font-size: 1.05rem;
-      font-weight: 600;
-      margin-bottom: 0.25rem;
-    }
-
-    .card-date {
-      font-size: 0.85rem;
-      color: var(--pd-text-light);
-    }
-
-    .card-summary {
-      padding: 0 1.25rem 1rem;
-      font-size: 0.95rem;
-      line-height: 1.7;
-    }
-
-    .card-topics {
-      padding: 0 1.25rem 1rem;
+    .stats-bar {
       display: flex;
       flex-wrap: wrap;
-      gap: 0.4rem;
+      gap: 1.5rem;
+      padding: 1rem 0;
+      margin-bottom: 1rem;
+      border-bottom: 1px solid var(--pd-border);
     }
 
-    .topic-tag {
-      background: var(--pd-tag-bg);
-      color: var(--pd-text);
-      font-size: 0.75rem;
-      padding: 0.2rem 0.6rem;
-      border-radius: 100px;
-      font-weight: 500;
-    }
-
-    .card-detail {
-      display: none;
-      border-top: 1px solid var(--pd-border);
-      padding: 1rem 1.25rem;
-      background: #fafafa;
-    }
-
-    .card-detail.open { display: block; }
-
-    .card-detail h3 {
-      font-size: 0.9rem;
-      font-weight: 600;
-      margin-bottom: 0.5rem;
-      color: var(--pd-text-light);
-    }
-
-    .agenda-item {
-      font-size: 0.85rem;
-      padding: 0.4rem 0;
-      border-bottom: 1px solid #eee;
-    }
-
-    .agenda-item:last-child { border-bottom: none; }
-
-    .agenda-item .matter-type {
-      display: inline-block;
-      background: var(--pd-tag-bg);
-      font-size: 0.7rem;
-      padding: 0.1rem 0.4rem;
-      border-radius: 3px;
-      margin-left: 0.3rem;
-    }
-
-    .toggle-icon {
-      flex-shrink: 0;
-      font-size: 1.2rem;
-      color: var(--pd-text-light);
-      transition: transform 0.2s;
-    }
-
-    .toggle-icon.open { transform: rotate(180deg); }
-
-    .item-count {
-      font-size: 0.8rem;
-      color: var(--pd-text-light);
-      margin-top: 0.25rem;
-    }
+    .stat { text-align: center; }
+    .stat-num { font-size: 1.5rem; font-weight: 700; color: var(--pd-green); }
+    .stat-label { font-size: 0.75rem; color: var(--pd-text-light); text-transform: uppercase; letter-spacing: 0.05em; }
 
     footer {
       text-align: center;
@@ -192,174 +296,384 @@
 
     footer a { color: var(--pd-green); }
 
-    .error {
-      text-align: center;
-      padding: 2rem;
-      color: #dc3545;
+    @media (max-width: 600px) {
+      .filters { gap: 0.35rem; }
+      .filter-btn { padding: 0.3rem 0.6rem; font-size: 0.75rem; }
+      .detail-grid { grid-template-columns: 1fr; gap: 0.2rem; }
+      .detail-label { margin-top: 0.3rem; }
     }
-
-    .card-meta {
-      padding: 0 1.25rem 1rem;
-      font-size: 0.85rem;
-      color: var(--pd-text-light);
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.75rem;
-      align-items: center;
-    }
-
-    .card-meta a {
-      color: var(--pd-green);
-      text-decoration: none;
-      font-weight: 500;
-    }
-
-    .card-meta a:hover { text-decoration: underline; }
   </style>
 </head>
 <body>
   <header>
-    <h1>Detroit Meeting Agendas</h1>
-    <p>AI-powered summaries of upcoming City Council agendas</p>
+    <h1>Metro Detroit Civic Data</h1>
+    <p>Public meetings and comment periods across Southeast Michigan</p>
   </header>
 
-  <div class="container" id="app">
-    <div class="loading" id="loading">Loading agenda summaries...</div>
+  <div class="container">
+    <div class="stats-bar" id="stats-bar"></div>
+
+    <div class="tabs">
+      <button class="tab active" data-tab="meetings">
+        Meetings <span class="tab-count" id="meetings-count">...</span>
+      </button>
+      <button class="tab" data-tab="comment-periods">
+        Comment Periods <span class="tab-count" id="cp-count">...</span>
+      </button>
+      <button class="tab" data-tab="agendas">
+        Agenda Summaries <span class="tab-count" id="agendas-count">...</span>
+      </button>
+    </div>
+
+    <!-- Meetings Panel -->
+    <div class="tab-panel active" id="panel-meetings">
+      <div class="filters" id="meeting-filters"></div>
+      <div id="meetings-list">
+        <div class="loading">Loading meetings...</div>
+      </div>
+    </div>
+
+    <!-- Comment Periods Panel -->
+    <div class="tab-panel" id="panel-comment-periods">
+      <div id="cp-list">
+        <div class="loading">Loading comment periods...</div>
+      </div>
+    </div>
+
+    <!-- Agendas Panel -->
+    <div class="tab-panel" id="panel-agendas">
+      <div id="agendas-list">
+        <div class="loading">Loading agenda summaries...</div>
+      </div>
+    </div>
   </div>
 
   <footer>
     Powered by <a href="https://planetdetroit.org">Planet Detroit</a>
-    &middot; Data from City of Detroit
+    &middot; 10 data sources across Metro Detroit
   </footer>
 
   <script>
-    // Use Railway API when hosted on GitHub Pages, otherwise use current origin
-    const API_BASE = window.location.hostname.includes('github.io')
-      ? 'https://ask-planet-detroit-production.up.railway.app'
-      : window.location.origin;
+    const API_BASE = 'https://ask-planet-detroit-production.up.railway.app';
 
-    async function loadSummaries() {
-      const loading = document.getElementById('loading');
-      const app = document.getElementById('app');
+    let allMeetings = [];
+    let activeSourceFilter = null;
 
-      try {
-        const resp = await fetch(`${API_BASE}/api/agenda-summaries?upcoming_only=true&limit=20`);
-        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-        const data = await resp.json();
+    // --- Tabs ---
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById('panel-' + tab.dataset.tab).classList.add('active');
+      });
+    });
 
-        loading.remove();
-
-        const summaries = data.agenda_summaries || [];
-
-        if (summaries.length === 0) {
-          app.innerHTML = `
-            <div class="empty">
-              <h2>No upcoming agenda summaries</h2>
-              <p>Agenda summaries are generated daily from the City of Detroit's meeting system.
-                 Check back when new meeting agendas are published.</p>
-            </div>`;
-          return;
-        }
-
-        // Fetch linked meeting details for each summary (for time/location/links)
-        const meetingDetails = {};
-        await Promise.all(summaries.map(async s => {
-          if (!s.meeting_id) return;
-          try {
-            const mResp = await fetch(`${API_BASE}/api/meetings/${s.meeting_id}`);
-            if (mResp.ok) meetingDetails[s.meeting_id] = await mResp.json();
-          } catch (e) { /* ignore — we'll just skip meeting info */ }
-        }));
-
-        summaries.forEach(s => {
-          const card = document.createElement('div');
-          card.className = 'card';
-
-          const date = new Date(s.meeting_date + 'T12:00:00');
-          const dateStr = date.toLocaleDateString('en-US', {
-            weekday: 'long', month: 'long', day: 'numeric', year: 'numeric'
-          });
-
-          const topics = (s.key_topics || [])
-            .map(t => `<span class="topic-tag">${t.replace(/_/g, ' ')}</span>`)
-            .join('');
-
-          // Build meeting info line (time, location, links)
-          const meeting = s.meeting_id ? meetingDetails[s.meeting_id] : null;
-          let metaParts = [];
-          if (meeting && meeting.meeting_time) {
-            const [h, m] = meeting.meeting_time.split(':');
-            const hour = parseInt(h);
-            const ampm = hour >= 12 ? 'PM' : 'AM';
-            const h12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
-            metaParts.push(`${h12}:${m} ${ampm}`);
-          }
-          if (meeting && meeting.location_name) {
-            metaParts.push(meeting.location_name);
-          }
-
-          let metaLinks = [];
-          // eSCRIBE agenda page link
-          const agendaUrl = `https://pub-detroitmi.escribemeetings.com/Meeting.aspx?Id=${s.escribemeetings_guid}&Agenda=Agenda&lang=English`;
-          metaLinks.push(`<a href="${agendaUrl}" target="_blank" rel="noopener">View full agenda</a>`);
-          if (meeting && meeting.virtual_url) {
-            metaLinks.push(`<a href="${meeting.virtual_url}" target="_blank" rel="noopener">Join via Zoom</a>`);
-          }
-
-          const metaHtml = (metaParts.length || metaLinks.length)
-            ? `<div class="card-meta">${metaParts.join(' &middot; ')}${metaParts.length && metaLinks.length ? ' &middot; ' : ''}${metaLinks.join(' &middot; ')}</div>`
-            : '';
-
-          // Parse agenda items from JSON
-          let agendaItems = [];
-          try {
-            agendaItems = typeof s.agenda_items === 'string'
-              ? JSON.parse(s.agenda_items)
-              : (s.agenda_items || []);
-          } catch (e) {
-            agendaItems = [];
-          }
-
-          const itemsHtml = agendaItems.map(item => {
-            const title = item.title || item.EventItemTitle || '';
-            return `<div class="agenda-item">${title}</div>`;
-          }).join('');
-
-          card.innerHTML = `
-            <div class="card-header" onclick="toggleDetail(this)">
-              <div>
-                <div class="card-title">${s.meeting_body}</div>
-                <div class="card-date">${dateStr}</div>
-                <div class="item-count">${s.item_count} agenda items</div>
-              </div>
-              <span class="toggle-icon">&#9660;</span>
-            </div>
-            <div class="card-summary">${s.summary}</div>
-            ${metaHtml}
-            ${topics ? `<div class="card-topics">${topics}</div>` : ''}
-            <div class="card-detail">
-              <h3>Full Agenda Items</h3>
-              ${itemsHtml || '<p>No items available</p>'}
-            </div>`;
-
-          app.appendChild(card);
-        });
-
-      } catch (err) {
-        loading.remove();
-        app.innerHTML = `<div class="error">Failed to load summaries. Please try again later.</div>`;
-        console.error('Error loading summaries:', err);
-      }
+    // --- Source badge helper ---
+    function sourceBadge(source) {
+      const map = {
+        'mpsc_scraper': ['MPSC', 'mpsc'],
+        'glwa_scraper': ['GLWA', 'glwa'],
+        'detroit_scraper': ['Detroit', 'detroit'],
+        'egle_scraper': ['EGLE', 'egle'],
+        'washtenaw_scraper': ['Washtenaw', 'washtenaw'],
+        'oakland_scraper': ['Oakland', 'oakland'],
+        'macomb_scraper': ['Macomb', 'macomb'],
+        'wayne_county_scraper': ['Wayne', 'wayne'],
+        'federal_register': ['Federal', 'federal'],
+      };
+      const [label, cls] = map[source] || [source || 'Unknown', ''];
+      return `<span class="source-badge ${cls}">${label}</span>`;
     }
 
-    function toggleDetail(header) {
-      const detail = header.parentElement.querySelector('.card-detail');
-      const icon = header.querySelector('.toggle-icon');
+    // --- Date formatting ---
+    function formatDate(dateStr) {
+      if (!dateStr) return '';
+      const d = new Date(dateStr + (dateStr.includes('T') ? '' : 'T12:00:00'));
+      return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+    }
+
+    function formatTime(timeStr) {
+      if (!timeStr) return '';
+      const [h, m] = timeStr.split(':');
+      const hour = parseInt(h);
+      const ampm = hour >= 12 ? 'PM' : 'AM';
+      const h12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+      return `${h12}:${m} ${ampm}`;
+    }
+
+    // --- Toggle ---
+    function toggleDetail(el) {
+      const detail = el.parentElement.querySelector('.card-detail');
+      const icon = el.querySelector('.toggle-icon');
       detail.classList.toggle('open');
       icon.classList.toggle('open');
     }
 
-    loadSummaries();
+    // --- Render meetings ---
+    function renderMeetings(meetings) {
+      const list = document.getElementById('meetings-list');
+
+      if (!meetings.length) {
+        list.innerHTML = '<div class="empty"><p>No upcoming meetings found.</p></div>';
+        return;
+      }
+
+      // Group by date
+      const byDate = {};
+      meetings.forEach(m => {
+        const d = m.meeting_date || 'Unknown';
+        if (!byDate[d]) byDate[d] = [];
+        byDate[d].push(m);
+      });
+
+      let html = '';
+      Object.entries(byDate).forEach(([date, items]) => {
+        html += `<div style="font-size:0.8rem; font-weight:600; color:var(--pd-text-light); text-transform:uppercase; letter-spacing:0.05em; margin:1.25rem 0 0.5rem; padding-bottom:0.25rem; border-bottom:1px solid var(--pd-border);">${formatDate(date)}</div>`;
+
+        items.forEach(m => {
+          const time = formatTime(m.meeting_time);
+          const isVirtual = m.is_virtual || m.virtual_url;
+          const isHybrid = m.is_hybrid;
+          let formatBadge = '';
+          if (isHybrid) formatBadge = '<span class="format-badge hybrid">Hybrid</span>';
+          else if (isVirtual) formatBadge = '<span class="format-badge virtual">Virtual</span>';
+
+          // Detail section
+          let details = '<div class="detail-grid">';
+          if (m.agency) details += `<span class="detail-label">Agency</span><span class="detail-value">${m.agency}</span>`;
+          if (m.meeting_type) details += `<span class="detail-label">Type</span><span class="detail-value">${m.meeting_type.replace(/_/g, ' ')}</span>`;
+          if (m.location || m.location_name) {
+            const loc = m.location || m.location_name;
+            const addr = m.location_address ? `, ${m.location_address}` : '';
+            details += `<span class="detail-label">Location</span><span class="detail-value">${loc}${addr}</span>`;
+          }
+          if (m.virtual_url) details += `<span class="detail-label">Virtual</span><span class="detail-value"><a href="${m.virtual_url}" target="_blank">Join online</a></span>`;
+          if (m.virtual_phone) details += `<span class="detail-label">Dial-in</span><span class="detail-value">${m.virtual_phone}${m.virtual_meeting_id ? ' (ID: ' + m.virtual_meeting_id + ')' : ''}</span>`;
+          if (m.agenda_url) details += `<span class="detail-label">Agenda</span><span class="detail-value"><a href="${m.agenda_url}" target="_blank">View agenda</a></span>`;
+          if (m.minutes_url) details += `<span class="detail-label">Minutes</span><span class="detail-value"><a href="${m.minutes_url}" target="_blank">View minutes</a></span>`;
+          if (m.details_url) details += `<span class="detail-label">Details</span><span class="detail-value"><a href="${m.details_url}" target="_blank">More info</a></span>`;
+          if (m.source_url && m.source_url !== m.details_url) details += `<span class="detail-label">Source</span><span class="detail-value"><a href="${m.source_url}" target="_blank">Source page</a></span>`;
+          if (m.contact_email) details += `<span class="detail-label">Contact</span><span class="detail-value"><a href="mailto:${m.contact_email}">${m.contact_email}</a></span>`;
+          details += '</div>';
+
+          const tags = (m.issue_tags || []).map(t => `<span class="tag">${t.replace(/_/g, ' ')}</span>`).join('');
+          if (tags) details += `<div class="tag-list">${tags}</div>`;
+
+          html += `
+            <div class="card">
+              <div class="card-header" onclick="toggleDetail(this)">
+                <div>
+                  <div class="card-title">${m.title || 'Untitled Meeting'}</div>
+                  <div class="card-subtitle">
+                    ${sourceBadge(m.source)}
+                    ${time ? `<span class="separator">·</span> ${time}` : ''}
+                    ${formatBadge}
+                    ${m.region ? `<span class="separator">·</span> ${m.region}` : ''}
+                  </div>
+                </div>
+                <span class="toggle-icon">&#9660;</span>
+              </div>
+              <div class="card-detail">${details}</div>
+            </div>`;
+        });
+      });
+
+      list.innerHTML = html;
+    }
+
+    // --- Render comment periods ---
+    function renderCommentPeriods(periods) {
+      const list = document.getElementById('cp-list');
+
+      if (!periods.length) {
+        list.innerHTML = '<div class="empty"><p>No open comment periods found.</p></div>';
+        return;
+      }
+
+      let html = '';
+      periods.forEach(cp => {
+        const days = cp.days_remaining;
+        let daysBadge = '';
+        if (days !== undefined) {
+          const cls = days <= 3 ? 'urgent' : days <= 7 ? 'soon' : 'plenty';
+          daysBadge = `<span class="days-badge ${cls}">${days} day${days !== 1 ? 's' : ''} left</span>`;
+        }
+
+        let details = '<div class="detail-grid">';
+        if (cp.agency) details += `<span class="detail-label">Agency</span><span class="detail-value">${cp.agency}</span>`;
+        if (cp.end_date) details += `<span class="detail-label">Deadline</span><span class="detail-value">${formatDate(cp.end_date)}</span>`;
+        if (cp.description) details += `<span class="detail-label">Description</span><span class="detail-value">${cp.description}</span>`;
+        if (cp.comment_url) details += `<span class="detail-label">Comment</span><span class="detail-value"><a href="${cp.comment_url}" target="_blank">Submit comment</a></span>`;
+        if (cp.document_url) details += `<span class="detail-label">Document</span><span class="detail-value"><a href="${cp.document_url}" target="_blank">View document</a></span>`;
+        if (cp.source_url) details += `<span class="detail-label">Source</span><span class="detail-value"><a href="${cp.source_url}" target="_blank">Federal Register</a></span>`;
+        details += '</div>';
+
+        const tags = (cp.issue_tags || []).map(t => `<span class="tag">${t.replace(/_/g, ' ')}</span>`).join('');
+        if (tags) details += `<div class="tag-list">${tags}</div>`;
+
+        html += `
+          <div class="card">
+            <div class="card-header" onclick="toggleDetail(this)">
+              <div>
+                <div class="card-title">${cp.title || 'Untitled'}</div>
+                <div class="card-subtitle">
+                  ${sourceBadge(cp.source)}
+                  ${daysBadge}
+                  ${cp.agency ? `<span class="separator">·</span> ${cp.agency}` : ''}
+                </div>
+              </div>
+              <span class="toggle-icon">&#9660;</span>
+            </div>
+            <div class="card-detail">${details}</div>
+          </div>`;
+      });
+
+      list.innerHTML = html;
+    }
+
+    // --- Render agenda summaries ---
+    function renderAgendas(summaries) {
+      const list = document.getElementById('agendas-list');
+
+      if (!summaries.length) {
+        list.innerHTML = '<div class="empty"><p>No upcoming agenda summaries available.</p></div>';
+        return;
+      }
+
+      let html = '';
+      summaries.forEach(s => {
+        const topics = (s.key_topics || []).map(t => `<span class="tag">${t.replace(/_/g, ' ')}</span>`).join('');
+        const agendaUrl = s.escribemeetings_guid
+          ? `https://pub-detroitmi.escribemeetings.com/Meeting.aspx?Id=${s.escribemeetings_guid}&Agenda=Agenda&lang=English`
+          : null;
+
+        let details = '<div class="detail-grid">';
+        details += `<span class="detail-label">Body</span><span class="detail-value">${s.meeting_body || ''}</span>`;
+        details += `<span class="detail-label">Items</span><span class="detail-value">${s.item_count || 0} agenda items</span>`;
+        if (agendaUrl) details += `<span class="detail-label">Agenda</span><span class="detail-value"><a href="${agendaUrl}" target="_blank">View full agenda</a></span>`;
+        details += '</div>';
+
+        html += `
+          <div class="card">
+            <div class="card-header" onclick="toggleDetail(this)">
+              <div>
+                <div class="card-title">${s.meeting_body || 'Meeting'}</div>
+                <div class="card-subtitle">
+                  <span class="source-badge detroit">Detroit</span>
+                  <span class="separator">·</span> ${formatDate(s.meeting_date)}
+                  <span class="separator">·</span> ${s.item_count || 0} items
+                </div>
+              </div>
+              <span class="toggle-icon">&#9660;</span>
+            </div>
+            <div class="card-summary">${s.summary || ''}</div>
+            ${topics ? `<div style="padding:0 1.25rem 0.75rem"><div class="tag-list">${topics}</div></div>` : ''}
+            <div class="card-detail">${details}</div>
+          </div>`;
+      });
+
+      list.innerHTML = html;
+    }
+
+    // --- Build source filters ---
+    function buildFilters(meetings) {
+      const sources = {};
+      meetings.forEach(m => {
+        const s = m.source || 'unknown';
+        sources[s] = (sources[s] || 0) + 1;
+      });
+
+      const filtersEl = document.getElementById('meeting-filters');
+      let html = '<span class="filter-label">Source:</span>';
+      html += `<button class="filter-btn active" data-source="all">All (${meetings.length})</button>`;
+
+      // Sort by count descending
+      Object.entries(sources)
+        .sort((a, b) => b[1] - a[1])
+        .forEach(([source, count]) => {
+          const map = {
+            'mpsc_scraper': 'MPSC',
+            'glwa_scraper': 'GLWA',
+            'detroit_scraper': 'Detroit',
+            'egle_scraper': 'EGLE',
+            'washtenaw_scraper': 'Washtenaw',
+            'oakland_scraper': 'Oakland',
+            'macomb_scraper': 'Macomb',
+            'wayne_county_scraper': 'Wayne',
+          };
+          const label = map[source] || source;
+          html += `<button class="filter-btn" data-source="${source}">${label} (${count})</button>`;
+        });
+
+      filtersEl.innerHTML = html;
+
+      filtersEl.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          filtersEl.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          const source = btn.dataset.source;
+          if (source === 'all') {
+            renderMeetings(allMeetings);
+          } else {
+            renderMeetings(allMeetings.filter(m => m.source === source));
+          }
+        });
+      });
+    }
+
+    // --- Load all data ---
+    async function loadData() {
+      const statsBar = document.getElementById('stats-bar');
+
+      try {
+        // Fetch all three in parallel
+        const [meetingsResp, cpResp, agendasResp] = await Promise.all([
+          fetch(`${API_BASE}/api/meetings?status=upcoming&limit=500`),
+          fetch(`${API_BASE}/api/comment-periods?status=open&limit=100`),
+          fetch(`${API_BASE}/api/agenda-summaries?upcoming_only=true&limit=50`),
+        ]);
+
+        const meetingsData = meetingsResp.ok ? await meetingsResp.json() : { meetings: [] };
+        const cpData = cpResp.ok ? await cpResp.json() : { comment_periods: [] };
+        const agendasData = agendasResp.ok ? await agendasResp.json() : { agenda_summaries: [] };
+
+        allMeetings = meetingsData.meetings || [];
+        const commentPeriods = cpData.comment_periods || [];
+        const agendas = agendasData.agenda_summaries || [];
+
+        // Count unique sources
+        const uniqueSources = new Set(allMeetings.map(m => m.source));
+
+        // Update tab counts
+        document.getElementById('meetings-count').textContent = allMeetings.length;
+        document.getElementById('cp-count').textContent = commentPeriods.length;
+        document.getElementById('agendas-count').textContent = agendas.length;
+
+        // Stats bar
+        statsBar.innerHTML = `
+          <div class="stat"><div class="stat-num">${allMeetings.length}</div><div class="stat-label">Upcoming Meetings</div></div>
+          <div class="stat"><div class="stat-num">${commentPeriods.length}</div><div class="stat-label">Open Comment Periods</div></div>
+          <div class="stat"><div class="stat-num">${uniqueSources.size}</div><div class="stat-label">Data Sources</div></div>
+          <div class="stat"><div class="stat-num">${agendas.length}</div><div class="stat-label">Agenda Summaries</div></div>
+        `;
+
+        // Render
+        buildFilters(allMeetings);
+        renderMeetings(allMeetings);
+        renderCommentPeriods(commentPeriods);
+        renderAgendas(agendas);
+
+      } catch (err) {
+        console.error('Error loading data:', err);
+        statsBar.innerHTML = '';
+        document.getElementById('meetings-list').innerHTML = `<div class="error">Failed to load data from API. <br><small>${err.message}</small></div>`;
+        document.getElementById('cp-list').innerHTML = `<div class="error">Failed to load.</div>`;
+        document.getElementById('agendas-list').innerHTML = `<div class="error">Failed to load.</div>`;
+      }
+    }
+
+    loadData();
   </script>
 </body>
 </html>

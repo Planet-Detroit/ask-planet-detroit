@@ -13,6 +13,8 @@ Routes items to two Supabase tables:
 
 import os
 import re
+
+from scraper_utils import print_result
 import html
 import urllib.request
 import xml.etree.ElementTree as ET
@@ -478,9 +480,14 @@ async def main():
         upsert_comment_periods(comment_periods)
 
     print("\nDone!")
+    print_result("egle", "ok", len(meetings), "meetings")
     return meetings
 
 
 if __name__ == "__main__":
     import asyncio
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except Exception as e:
+        print_result("egle", "error", error=str(e))
+        raise

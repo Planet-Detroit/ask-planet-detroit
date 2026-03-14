@@ -13,6 +13,8 @@ import os
 import re
 from datetime import datetime
 from zoneinfo import ZoneInfo
+
+from scraper_utils import print_result
 from playwright.async_api import async_playwright
 from supabase import create_client
 from dotenv import load_dotenv
@@ -120,6 +122,24 @@ async def scrape_meeting_detail(page, url):
         conf_match = re.search(r'Conference\s*ID[:\s]*(\d[\d\s]*\d#?)', content, re.IGNORECASE)
         conference_id = conf_match.group(1).strip() if conf_match else None
 
+        # Extract agenda URL — look for PDF links with "agenda" in the text or filename
+        # Exclude generic search pages (ScheduleAgendaSearch) which aren't actual agendas
+        agenda_url = None
+        pdf_links = await page.query_selector_all('a[href$=".pdf"]')
+        for link in pdf_links:
+            href = await link.get_attribute("href")
+            link_text = (await link.inner_text()).strip().lower()
+            if href and ("agenda" in link_text or "agenda" in href.lower()):
+                agenda_url = f"https://www.michigan.gov{href}" if not href.startswith("http") else href
+                break
+        # Fallback: any PDF link on the page
+        if not agenda_url:
+            for link in pdf_links:
+                href = await link.get_attribute("href")
+                if href:
+                    agenda_url = f"https://www.michigan.gov{href}" if not href.startswith("http") else href
+                    break
+
         # Determine if virtual/hybrid
         is_virtual = bool(teams_url) or "teleconference" in description.lower()
         is_hybrid = is_virtual and ("in-person" in description.lower() or "in person" in description.lower())
@@ -165,6 +185,7 @@ async def scrape_meeting_detail(page, url):
             "source_id": f"mpsc-{meeting_date.strftime('%Y-%m-%d')}",
             "status": "upcoming",
             "details_url": url,
+            "agenda_url": agenda_url,
         }
 
         return meeting
@@ -259,8 +280,13 @@ async def main():
         upsert_meetings(meetings)
 
     print("\nDone!")
+    print_result("mpsc", "ok", len(meetings), "meetings")
     return meetings
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except Exception as e:
+        print_result("mpsc", "error", error=str(e))
+        raise

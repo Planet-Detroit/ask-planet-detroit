@@ -1,0 +1,251 @@
+# Scraper Registry — single source of truth for all scrapers
+# Adding a scraper? Just add an entry here. No need to edit run_scrapers.py or GitHub Actions.
+#
+# Fields:
+#   name: Human-readable name (used in logs and summaries)
+#   module: Python module to import (must have an async main() function)
+#   table: Supabase table this scraper writes to (meetings or comment_periods)
+#   platform: Source system (e.g., escribemeetings, legistar, trumba, federal_register_api, michigan_gov)
+#   needs_browser: Whether Playwright is required (affects GitHub Actions job assignment)
+#   enabled: Set to false to skip without deleting the entry
+#   depends_on: List of scraper keys that must run before this one (optional)
+#   canary_selectors: CSS selectors that must exist on the page for the scraper to work (planned — for health monitoring)
+
+scrapers:
+  mpsc:
+    name: MPSC
+    module: mpsc_scraper
+    table: meetings
+    platform: michigan_gov
+    needs_browser: true
+    enabled: true
+
+  glwa:
+    name: GLWA
+    module: glwa_scraper
+    table: meetings
+    platform: legistar
+    needs_browser: true
+    enabled: true
+
+  detroit:
+    name: Detroit
+    module: detroit_scraper
+    table: meetings
+    platform: escribemeetings
+    needs_browser: true
+    enabled: true
+
+  egle:
+    name: EGLE
+    module: egle_scraper
+    table: meetings
+    platform: trumba
+    needs_browser: false
+    enabled: true
+
+  detroit_agenda:
+    name: Detroit Agendas
+    module: escribe_agenda_scraper
+    table: agenda_summaries
+    platform: escribemeetings
+    needs_browser: true
+    enabled: true
+    depends_on:
+      - detroit
+
+  washtenaw:
+    name: Washtenaw County
+    module: washtenaw_scraper
+    table: meetings
+    platform: civicclerk
+    needs_browser: false
+    enabled: true
+
+  oakland:
+    name: Oakland County
+    module: oakland_scraper
+    table: meetings
+    platform: civicclerk
+    needs_browser: false
+    enabled: true
+
+  macomb:
+    name: Macomb County
+    module: macomb_scraper
+    table: meetings
+    platform: civicclerk
+    needs_browser: false
+    enabled: true
+
+  # --- CivicClerk municipalities (no new code, just configs) ---
+  livonia:
+    name: City of Livonia
+    module: civicclerk_scraper
+    config_key: livonia
+    table: meetings
+    platform: civicclerk
+    needs_browser: false
+    enabled: true
+
+  canton:
+    name: Canton Township
+    module: civicclerk_scraper
+    config_key: canton
+    table: meetings
+    platform: civicclerk
+    needs_browser: false
+    enabled: true
+
+  dearborn_heights:
+    name: City of Dearborn Heights
+    module: civicclerk_scraper
+    config_key: dearborn_heights
+    table: meetings
+    platform: civicclerk
+    needs_browser: false
+    enabled: true
+
+  west_bloomfield:
+    name: West Bloomfield Township
+    module: civicclerk_scraper
+    config_key: west_bloomfield
+    table: meetings
+    platform: civicclerk
+    needs_browser: false
+    enabled: true
+
+  macomb_twp:
+    name: Macomb Township
+    module: civicclerk_scraper
+    config_key: macomb_twp
+    table: meetings
+    platform: civicclerk
+    needs_browser: false
+    enabled: true
+
+  roseville:
+    name: City of Roseville
+    module: civicclerk_scraper
+    config_key: roseville
+    table: meetings
+    platform: civicclerk
+    needs_browser: false
+    enabled: true
+
+  birmingham:
+    name: City of Birmingham
+    module: civicclerk_scraper
+    config_key: birmingham
+    table: meetings
+    platform: civicclerk
+    needs_browser: false
+    enabled: true
+
+  oak_park:
+    name: City of Oak Park
+    module: civicclerk_scraper
+    config_key: oak_park
+    table: meetings
+    platform: civicclerk
+    needs_browser: false
+    enabled: true
+
+  romulus:
+    name: City of Romulus
+    module: civicclerk_scraper
+    config_key: romulus
+    table: meetings
+    platform: civicclerk
+    needs_browser: false
+    enabled: true
+
+  harrison_twp:
+    name: Harrison Township
+    module: civicclerk_scraper
+    config_key: harrison_twp
+    table: meetings
+    platform: civicclerk
+    needs_browser: false
+    enabled: true
+
+  ypsilanti:
+    name: City of Ypsilanti
+    module: civicclerk_scraper
+    config_key: ypsilanti
+    table: meetings
+    platform: civicclerk
+    needs_browser: false
+    enabled: true
+
+  grosse_pointe:
+    name: City of Grosse Pointe
+    module: civicclerk_scraper
+    config_key: grosse_pointe
+    table: meetings
+    platform: civicclerk
+    needs_browser: false
+    enabled: true
+
+  st_clair_county:
+    name: St. Clair County
+    module: civicclerk_scraper
+    config_key: st_clair_county
+    table: meetings
+    platform: civicclerk
+    needs_browser: false
+    enabled: true
+
+  wayne_county:
+    name: Wayne County
+    module: wayne_county_scraper
+    table: meetings
+    platform: granicus
+    needs_browser: true
+    enabled: true
+
+  # --- Legistar API municipalities (no browser, shared module) ---
+  ann_arbor:
+    name: City of Ann Arbor
+    module: legistar_scraper
+    config_key: ann_arbor
+    table: meetings
+    platform: legistar_api
+    needs_browser: false
+    enabled: true
+
+  dwsd:
+    name: DWSD
+    module: legistar_scraper
+    config_key: dwsd
+    table: meetings
+    platform: legistar_api
+    needs_browser: false
+    enabled: true
+
+  # --- eSCRIBE Meetings API (no browser needed) ---
+  royal_oak:
+    name: City of Royal Oak
+    module: escribemeetings_scraper
+    config_key: royal_oak
+    table: meetings
+    platform: escribemeetings
+    needs_browser: false
+    enabled: true
+
+  # --- Michigan Legislature ---
+  mi_legislature:
+    name: Michigan Legislature
+    module: mi_legislature_scraper
+    table: meetings
+    platform: mi_legislature_rss
+    needs_browser: false
+    enabled: true
+
+  federal_register:
+    name: Federal Register
+    module: federal_register_scraper
+    table: comment_periods
+    platform: federal_register_api
+    needs_browser: false
+    enabled: true
