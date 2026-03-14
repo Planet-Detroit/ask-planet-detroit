@@ -242,12 +242,20 @@ scrapers:
     needs_browser: false
     enabled: true
 
-  # --- WordPress custom scrapers ---
+  # --- Custom HTML scrapers (no browser needed) ---
   warren:
     name: City of Warren
     module: warren_scraper
     table: meetings
     platform: wordpress
+    needs_browser: false
+    enabled: true
+
+  dearborn:
+    name: City of Dearborn
+    module: dearborn_scraper
+    table: meetings
+    platform: drupal
     needs_browser: false
     enabled: true
 
