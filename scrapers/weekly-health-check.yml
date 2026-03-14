@@ -44,10 +44,35 @@ jobs:
           cd scrapers
           python health_check.py --slack
 
+      - name: Run DOM canary checks
+        run: |
+          cd scrapers
+          python canary_check.py 2>&1 | tee canary_report.txt || true
+
+      - name: Post canary results to Slack
+        if: secrets.SLACK_WEBHOOK_URL != ''
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          cd scrapers
+          python -c "
+          import asyncio
+          from canary_check import run_all_checks, format_slack_message, post_to_slack
+          results = asyncio.run(run_all_checks())
+          failed = [r for r in results if r['status'] == 'failed']
+          if failed:
+              post_to_slack(format_slack_message(results))
+          " || true
+
       - name: Create summary
         if: always()
         run: |
           echo "## Weekly Health Check" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           cat scrapers/health_report.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## DOM Canary Checks" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat scrapers/canary_report.txt >> $GITHUB_STEP_SUMMARY 2>/dev/null || echo "No canary report" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
