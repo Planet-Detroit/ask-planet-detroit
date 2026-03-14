@@ -319,6 +319,14 @@ scrapers:
     needs_browser: false
     enabled: true
 
+  farmington_hills:
+    name: City of Farmington Hills
+    module: farmington_hills_scraper
+    table: meetings
+    platform: muniweb
+    needs_browser: false
+    enabled: true
+
   federal_register:
     name: Federal Register
     module: federal_register_scraper

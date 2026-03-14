@@ -1,13 +1,19 @@
-"""Tests for novi_scraper.py — City of Novi meeting scraper."""
+"""Tests for MuniWeb scraper — City of Novi and Farmington Hills."""
 
 import pytest
-from novi_scraper import (
+from muniweb_scraper import (
     parse_listing_page,
     determine_meeting_type,
     get_issue_tags,
-    BOARD_CONFIGS,
-    DEFAULT_TAGS,
+    _parse_date_text,
+    MUNIWEB_CONFIGS,
 )
+
+# Shortcuts for tests
+BOARD_CONFIGS = MUNIWEB_CONFIGS["novi"]["boards"]
+DEFAULT_TAGS = MUNIWEB_CONFIGS["novi"]["default_tags"]
+BASE_URL = MUNIWEB_CONFIGS["novi"]["base_url"]
+FH_BASE_URL = MUNIWEB_CONFIGS["farmington_hills"]["base_url"]
 
 
 # --- Sample HTML ---
@@ -101,28 +107,38 @@ class TestDetermineMeetingType:
 
 class TestGetIssueTags:
     def test_planning(self):
-        tags = get_issue_tags("Planning Commission")
+        tags = get_issue_tags("Planning Commission", DEFAULT_TAGS)
         assert "planning" in tags
 
     def test_environmental(self):
-        tags = get_issue_tags("Environmental Sustainability Committee")
+        tags = get_issue_tags("Environmental Sustainability Committee", DEFAULT_TAGS)
         assert "environment" in tags
 
     def test_parks(self):
-        tags = get_issue_tags("Parks, Recreation and Cultural Services Commission")
+        tags = get_issue_tags("Parks, Recreation and Cultural Services Commission", DEFAULT_TAGS)
         assert "parks" in tags
 
     def test_default(self):
-        assert get_issue_tags("City Council") == DEFAULT_TAGS
+        assert get_issue_tags("City Council", DEFAULT_TAGS) == DEFAULT_TAGS
 
 
-# --- BOARD_CONFIGS validation ---
+# --- MUNIWEB_CONFIGS validation ---
 
-class TestBoardConfigs:
-    def test_all_configs_have_required_fields(self):
-        for key, config in BOARD_CONFIGS.items():
-            assert "name" in config, f"{key} missing name"
-            assert "slug" in config, f"{key} missing slug"
+class TestMuniwebConfigs:
+    def test_all_cities_have_required_fields(self):
+        for city_key, city in MUNIWEB_CONFIGS.items():
+            assert "city_name" in city, f"{city_key} missing city_name"
+            assert "base_url" in city, f"{city_key} missing base_url"
+            assert "url_path" in city, f"{city_key} missing url_path"
+            assert "boards" in city, f"{city_key} missing boards"
+            assert "source" in city, f"{city_key} missing source"
+            assert "default_tags" in city, f"{city_key} missing default_tags"
+
+    def test_all_boards_have_required_fields(self):
+        for city_key, city in MUNIWEB_CONFIGS.items():
+            for key, config in city["boards"].items():
+                assert "name" in config, f"{city_key}/{key} missing name"
+                assert "slug" in config, f"{city_key}/{key} missing slug"
 
     def test_city_council_has_time(self):
         assert BOARD_CONFIGS["city_council"]["time"] == "19:00"
@@ -133,21 +149,21 @@ class TestBoardConfigs:
 class TestParseListingPage:
     def test_council_div_format(self):
         """City Council uses <div>/<strong> format."""
-        entries = parse_listing_page(SAMPLE_COUNCIL_HTML, "city_council")
+        entries = parse_listing_page(SAMPLE_COUNCIL_HTML, BASE_URL)
         assert len(entries) == 3
 
     def test_council_dates(self):
-        entries = parse_listing_page(SAMPLE_COUNCIL_HTML, "city_council")
+        entries = parse_listing_page(SAMPLE_COUNCIL_HTML, BASE_URL)
         assert entries[0]["date"] == "2026-03-09"
         assert entries[1]["date"] == "2026-02-23"
 
     def test_council_agenda_url(self):
-        entries = parse_listing_page(SAMPLE_COUNCIL_HTML, "city_council")
+        entries = parse_listing_page(SAMPLE_COUNCIL_HTML, BASE_URL)
         assert entries[0]["agenda_url"] is not None
         assert "/agendas-minutes/city-council/2026/mar-9-2026/" in entries[0]["agenda_url"]
 
     def test_council_minutes_url(self):
-        entries = parse_listing_page(SAMPLE_COUNCIL_HTML, "city_council")
+        entries = parse_listing_page(SAMPLE_COUNCIL_HTML, BASE_URL)
         # First entry has no minutes
         assert entries[0]["minutes_url"] is None
         # Second entry has minutes
@@ -156,22 +172,22 @@ class TestParseListingPage:
 
     def test_planning_strong_format(self):
         """Planning Commission uses div/strong date + p links format."""
-        entries = parse_listing_page(SAMPLE_PLANNING_HTML, "planning_commission")
+        entries = parse_listing_page(SAMPLE_PLANNING_HTML, BASE_URL)
         # Canceled meeting should be excluded
         assert len(entries) == 2
 
     def test_planning_dates(self):
-        entries = parse_listing_page(SAMPLE_PLANNING_HTML, "planning_commission")
+        entries = parse_listing_page(SAMPLE_PLANNING_HTML, BASE_URL)
         assert entries[0]["date"] == "2026-03-11"
         assert entries[1]["date"] == "2026-02-25"
 
     def test_planning_agenda_url(self):
-        entries = parse_listing_page(SAMPLE_PLANNING_HTML, "planning_commission")
+        entries = parse_listing_page(SAMPLE_PLANNING_HTML, BASE_URL)
         assert entries[0]["agenda_url"] is not None
         assert "/planning-commission/2026/mar-11-2026/" in entries[0]["agenda_url"]
 
     def test_planning_minutes_url(self):
-        entries = parse_listing_page(SAMPLE_PLANNING_HTML, "planning_commission")
+        entries = parse_listing_page(SAMPLE_PLANNING_HTML, BASE_URL)
         # First entry has no minutes (only Action Summary)
         assert entries[0]["minutes_url"] is None
         # Second entry has minutes
@@ -180,35 +196,63 @@ class TestParseListingPage:
 
     def test_canceled_excluded(self):
         """Meetings marked CANCELED should be skipped."""
-        entries = parse_listing_page(SAMPLE_PLANNING_HTML, "planning_commission")
+        entries = parse_listing_page(SAMPLE_PLANNING_HTML, BASE_URL)
         dates = [e["date"] for e in entries]
         assert "2026-01-28" not in dates
 
     def test_zba_paragraph_format(self):
         """ZBA uses flat p date + p links format."""
-        entries = parse_listing_page(SAMPLE_ZBA_HTML, "zba")
+        entries = parse_listing_page(SAMPLE_ZBA_HTML, BASE_URL)
         assert len(entries) == 2
 
     def test_zba_dates(self):
-        entries = parse_listing_page(SAMPLE_ZBA_HTML, "zba")
+        entries = parse_listing_page(SAMPLE_ZBA_HTML, BASE_URL)
         assert entries[0]["date"] == "2026-03-10"
         assert entries[1]["date"] == "2026-02-10"
 
     def test_zba_agenda_url(self):
-        entries = parse_listing_page(SAMPLE_ZBA_HTML, "zba")
+        entries = parse_listing_page(SAMPLE_ZBA_HTML, BASE_URL)
         assert entries[0]["agenda_url"] is not None
         assert "/zoning-board-of-appeals/2026/mar-10-2026/" in entries[0]["agenda_url"]
 
     def test_zba_minutes_url(self):
-        entries = parse_listing_page(SAMPLE_ZBA_HTML, "zba")
+        entries = parse_listing_page(SAMPLE_ZBA_HTML, BASE_URL)
         assert entries[0]["minutes_url"] is None  # First entry has no minutes
         assert entries[1]["minutes_url"] is not None
         assert "260210m.pdf" in entries[1]["minutes_url"]
 
     def test_empty_page(self):
-        entries = parse_listing_page(SAMPLE_EMPTY_HTML, "city_council")
+        entries = parse_listing_page(SAMPLE_EMPTY_HTML, BASE_URL)
         assert len(entries) == 0
 
     def test_full_url_construction(self):
-        entries = parse_listing_page(SAMPLE_COUNCIL_HTML, "city_council")
+        entries = parse_listing_page(SAMPLE_COUNCIL_HTML, BASE_URL)
         assert entries[0]["agenda_url"].startswith("https://www.cityofnovi.org/")
+
+    def test_farmington_hills_url_construction(self):
+        """Farmington Hills uses different base_url but same parser."""
+        entries = parse_listing_page(SAMPLE_PLANNING_HTML, FH_BASE_URL)
+        assert entries[0]["agenda_url"].startswith("https://www.fhgov.com/")
+
+
+# --- Date parsing ---
+
+class TestDateParsing:
+    def test_month_name_comma(self):
+        assert _parse_date_text("Mar 9, 2026") == "2026-03-09"
+
+    def test_full_month_name(self):
+        assert _parse_date_text("March 9, 2026") == "2026-03-09"
+
+    def test_slash_format(self):
+        """Farmington Hills uses MM/DD/YYYY format."""
+        assert _parse_date_text("3/19/2026") == "2026-03-19"
+
+    def test_slash_with_surrounding_text(self):
+        assert _parse_date_text("3/19/2026 - Regular Meeting") == "2026-03-19"
+
+    def test_canceled_with_slash_date(self):
+        assert _parse_date_text("3/12/2026 - CANCELED") == "2026-03-12"
+
+    def test_no_date(self):
+        assert _parse_date_text("No meetings scheduled") is None
