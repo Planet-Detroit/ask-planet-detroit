@@ -1,6 +1,6 @@
 # Scraper Roadmap — Metro Detroit Civic Data Coverage
 
-**Last Updated:** 2026-03-14
+**Last Updated:** 2026-03-15
 **Coverage Area:** 7 SEMCOG counties (~240 municipalities)
 
 ---
@@ -31,11 +31,11 @@ We prioritize by **platform leverage x population coverage**:
 
 | Metric | Count |
 |--------|-------|
-| **Scrapers live** | 36 |
-| **Platforms built** | 14 (CivicClerk, Legistar HTML, Legistar API, eSCRIBE browser, eSCRIBE API, Granicus, Trumba, Federal Register API, MI Legislature RSS, WordPress sitemap, Drupal Views, Revize CMS, CivicPlus) |
-| **Meetings in DB** | ~450+ |
-| **Sources** | State agencies (3), regional bodies (3), counties (4), municipalities (25), federal (1) |
-| **Tests** | 439 passing |
+| **Scrapers live** | 35 enabled (37 in registry) |
+| **Platforms built** | 15 (CivicClerk, Legistar HTML, Legistar API, eSCRIBE browser, eSCRIBE API, Granicus, Trumba, Federal Register API, MI Legislature RSS, WordPress sitemap, Drupal Views, Revize CMS, CivicPlus, MuniWeb) |
+| **Meetings in DB** | ~500+ |
+| **Sources** | State agencies (3), regional bodies (3), counties (5), municipalities (27), federal (1) |
+| **Tests** | 526 passing |
 
 ---
 
@@ -175,9 +175,10 @@ Has RSS feeds but they're document-publication feeds (when agenda was uploaded, 
 
 | Municipality | County | Pop. | URL Pattern | Status |
 |---|---|---|---|---|
-| Sterling Heights | Macomb | 134K | `sterlingheights.gov/AgendaCenter` | DEFERRED |
-| Westland | Wayne | 82K | `cityofwestland.com/AgendaCenter` | DEFERRED |
-| + 13 more | Various | ~400K | Various | DEFERRED |
+| Sterling Heights | Macomb | 134K | `sterlingheights.gov/AgendaCenter` | NEXT — highest-leverage new platform |
+| Westland | Wayne | 84K | `cityofwestland.com/AgendaCenter` | NEXT |
+| Waterford Twp | Oakland | 70K | `waterfordmi.gov/AgendaCenter` | NEXT |
+| + 12 more | Various | ~300K | Various | DEFERRED |
 
 ## School Boards — BoardDocs (DEFERRED — needs Playwright)
 
@@ -201,10 +202,12 @@ These need individual scrapers. Prioritized by population.
 | Troy | Oakland | 87K | Revize CMS + OnBase | P3 | **LIVE** |
 | Farmington Hills | Oakland | 83K | MuniWeb | P3 | PLANNED |
 | Clinton Township | Macomb | 101K | CivicPlus calendar + CivicClerk | P3 | **LIVE** |
-| Novi | Oakland | 61K | MuniWeb | P4 | PLANNED |
-| Pontiac | Oakland | 61K | Revize CMS | P4 | PLANNED |
+| Novi | Oakland | 61K | MuniWeb (9 boards) | P4 | **LIVE** |
+| Pontiac | Oakland | 61K | Revize CMS (calendar JSON + RRULE) | P4 | **LIVE** |
 | Ypsilanti Township | Washtenaw | 55K | Custom website | P4 | PLANNED |
+| Van Buren Twp | Wayne | 29K | Unknown | P3 | RESEARCH — active PD coverage (data center) |
 | Southgate | Wayne | 29K | Granicus | P4 | RESEARCH |
+| Gibraltar | Wayne | 4K | Unknown | P4 | RESEARCH — active PD coverage (data center moratorium) |
 | Ferndale | Oakland | 20K | Static PDF calendar | P5 | DEFERRED (schedule-based generation possible) |
 | Eastpointe | Macomb | 32K | CivicClerk OData API | P4 | **LIVE** |
 | Port Huron | St. Clair | 28K | Custom website | P4 | PLANNED |
@@ -213,12 +216,34 @@ These need individual scrapers. Prioritized by population.
 
 ## Recommended Next Steps
 
-### Immediate — Royal Oak eSCRIBE (adapt existing)
-Adapt Detroit eSCRIBE scraper for Royal Oak. Same platform, different data.
-**Result: +59K population, 1 new source**
+### Next 5 by population (not yet covered)
 
-### Near-term — High-population custom scrapers
-Warren (139K), Dearborn (94K), Troy (87K) — research their specific platforms and build individual scrapers where feasible.
+| Municipality | County | Pop. | Platform | Notes |
+|---|---|---|---|---|
+| Sterling Heights | Macomb | 134K | CivicPlus AgendaCenter | 4th largest city in MI. Same platform as Westland + Waterford. |
+| Westland | Wayne | 84K | CivicPlus AgendaCenter | Same platform as Sterling Heights. |
+| Farmington Hills | Oakland | 83K | MuniWeb | Same platform as Novi (already built). |
+| Rochester Hills | Oakland | 77K | Legistar | API was broken (DB login error) — may be fixed now. |
+| Southfield | Oakland | 76K | Documents-On-Demand | No API, needs browser + FancyTree. High effort. |
+| Waterford Twp | Oakland | 70K | CivicPlus AgendaCenter | Same platform as Sterling Heights. |
+
+**High-leverage play:** CivicPlus AgendaCenter scraper covers Sterling Heights + Westland + Waterford = **~288K residents** with one scraper. These sites have RSS feeds for document publication — worth investigating whether meeting dates/times are extractable.
+
+**Quick win:** Farmington Hills uses MuniWeb like Novi. The existing Novi scraper pattern should transfer directly.
+
+### Coverage-driven priorities (from Planet Detroit reporting)
+
+These municipalities appear in active PD coverage, especially the **data center boom** and **environmental justice** stories:
+
+| Municipality | County | Pop. | Story Context |
+|---|---|---|---|
+| Van Buren Twp | Wayne | 29K | "Project Cannoli" — 1 GW data center through local planning process |
+| Gibraltar | Wayne | 4K | Data center at McLouth Steel site; moratorium passed |
+| Saline / Saline Twp | Washtenaw | 9K | $7B data center + DTE power deal; active legal proceedings |
+| Allen Park | Wayne | 27K | Data center coverage involving local officials |
+| Highland Park | Wayne | 9K | Long-running water crisis coverage |
+
+These are smaller but have **active civic decision-making** that PD is covering. Van Buren Township's 1 GW data center vote is especially high-value for readers.
 
 ### Medium-term — BoardDocs via Playwright
 Build browser-based scraper for DPSCD and other school boards. High civic value for education coverage.
@@ -232,13 +257,15 @@ For cities like Ferndale with static PDF calendars, generate meetings from known
 
 | Milestone | Sources | Est. Population Covered | Platforms |
 |-----------|---------|------------------------|-----------|
-| **Current (2026-03-14)** | **36** | **~2.7M + statewide** | **14** |
-| + BoardDocs schools | 35 | ~2.3M + schools | 11 |
-| + CivicEngage (if revisited) | 50 | ~2.8M | 12 |
-| Full buildout | 60+ | ~3M+ | 12+ |
+| **Current (2026-03-15)** | **35** | **~2.8M + statewide** | **15** |
+| + Farmington Hills (MuniWeb) | 36 | ~2.9M | 15 |
+| + CivicPlus AgendaCenter (Sterling Hts, Westland, Waterford) | 39 | ~3.2M | 16 |
+| + coverage-driven (Van Buren, Gibraltar, etc.) | 44 | ~3.3M | 16+ |
+| + BoardDocs schools | 48 | ~3.3M + schools | 17 |
+| Full buildout | 60+ | ~3.5M+ | 17+ |
 
 **Southeast Michigan total population: ~4.7M**
-**Current coverage: ~40% of SEMCOG population + statewide legislature**
+**Current coverage: ~42% of SEMCOG population + statewide legislature**
 
 ---
 
