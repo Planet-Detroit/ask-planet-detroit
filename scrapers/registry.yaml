@@ -223,6 +223,16 @@ scrapers:
     needs_browser: false
     enabled: true
 
+  # --- eSCRIBE Meetings API (no browser needed) ---
+  royal_oak:
+    name: City of Royal Oak
+    module: escribemeetings_scraper
+    config_key: royal_oak
+    table: meetings
+    platform: escribemeetings
+    needs_browser: false
+    enabled: true
+
   # --- Michigan Legislature ---
   mi_legislature:
     name: Michigan Legislature
