@@ -213,6 +213,16 @@ CIVICCLERK_CONFIGS = {
         },
         "default_tags": ["government", "grosse_pointe"],
     },
+    "eastpointe": {
+        "name": "City of Eastpointe",
+        "api_base": "https://eastpointemi.api.civicclerk.com/v1",
+        "portal_base": "https://eastpointemi.portal.civicclerk.com",
+        "site_key": "EASTPOINTEMI",
+        "region": "Macomb County",
+        "source": "eastpointe_scraper",
+        "env_categories": {},
+        "default_tags": ["government", "eastpointe"],
+    },
     "st_clair_county": {
         "name": "St. Clair County",
         "api_base": "https://stclaircomi.api.civicclerk.com/v1",
