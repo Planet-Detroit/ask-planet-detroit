@@ -223,6 +223,15 @@ scrapers:
     needs_browser: false
     enabled: true
 
+  # --- Michigan Legislature ---
+  mi_legislature:
+    name: Michigan Legislature
+    module: mi_legislature_scraper
+    table: meetings
+    platform: mi_legislature_rss
+    needs_browser: false
+    enabled: true
+
   federal_register:
     name: Federal Register
     module: federal_register_scraper
